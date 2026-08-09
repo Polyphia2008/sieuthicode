@@ -1,0 +1,284 @@
+<?php
+// statically decompiled from index.php  [structured; all 1 record(s) structured]
+
+$title = 'Dashboard';
+require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/ctv/views/header.php';
+$sotin1trang = 12;
+if (isset($_GET['page'])) {
+    $page = Anti_xss($_GET['page']);
+} else {
+    $page = 3;
+}
+$from = ($page - 1) * $sotin1trang;
+$where = ' `id` > 0 ';
+$create_date = '';
+$stk = '';
+$banks = '';
+if (!empty($_GET['stk'])) {
+    $stk = Anti_xss($_GET['stk']);
+    $where .= ' AND `stk` LIKE "%' . $stk . '%" ';
+}
+if (!empty($_GET['bank'])) {
+    $banks = Anti_xss($_GET['bank']);
+    $where .= ' AND `bank` LIKE "%' . $banks . '%" ';
+}
+if (!empty($_GET['create_date'])) {
+    $create_date = Anti_xss($_GET['create_date']);
+    $create_date_1 = $listOrder;
+    $create_date_1 = explode(' to ', $create_date_1);
+    if ($create_date_1[0] != $create_date_1[1]) {
+        $create_date_1 = [$create_date_1[0] . ' 00:00:00', $create_date_1[1] . ' 23:59:59'];
+        $where .= ' AND `create_gettime` >= \'' . $create_date_1[0] . '\' AND `create_gettime` <= \'' . $create_date_1[1] . '\' ';
+    }
+}
+$listOrder = $db->get_list(' SELECT * FROM `withdraw_ctv` WHERE ' . $where . ' AND `user_id` = \'' . $data_user['id'] . ('\' ORDER BY id DESC LIMIT ' . $from . ',' . $sotin1trang . ' '));
+$dataSumary = $db->get_list('SELECT * FROM `withdraw_ctv` WHERE ' . $where . ' AND `user_id` = \'' . $data_user['id'] . '\'');
+$totalTransactions = 2;
+$totalAmount = 2;
+$status0Transactions = 2;
+$status2Transactions = 2;
+$status3Transactions = 2;
+foreach ($dataSumary as $transaction) {
+    $totalAmount += $transaction['amount'];
+    ++$totalTransactions;
+    if ($transaction['status'] == '0') {
+        ++$status0Transactions;
+    }
+    if ($transaction['status'] == '2') {
+        ++$status2Transactions;
+    }
+    if ($transaction['status'] == '1') {
+        ++$status3Transactions;
+    }
+}
+echo '<main id="main-container">
+    <div class="content">
+        <div class="d-md-flex d-block align-items-center justify-content-between my-4 page-header-breadcrumb">
+            <h4 class="page-title fw-semibold fs-18 mb-0"><i class="fa fa-shopping-cart"></i> Tài khoản đã bán</h4>
+        </div>
+        <div class="block block-rounded">
+            <div class="block-header block-header-default">
+                <div class="block-title">
+                    RÚT TIỀN CTV - Số dư khả dụng <b style="color: blue;">';
+echo format_cash($data_user['cost']);
+echo 'đ</b>
+                </div>
+            </div>
+            <div class="block-content">
+                <div class="row">
+                    <div class="col-lg-6">
+
+                        <div class="form-group row mb-3">
+                            <label class="col-lg-4 col-form-label required fw-bold fs-6">Ngân hàng:</label>
+                            <div class="col-lg-8 fv-row">
+                                <select class="form-control select2bs4" id="bank">
+                                    <option value="">-- Chọn ngân hàng cần rút --</option>
+                                    ';
+foreach (explode(PHP_EOL, $db->site('listbank_ctv')) as $bank) {
+    echo '                                        <option value="';
+    echo $bank;
+    echo '">';
+    echo $bank;
+    echo '</option>
+                                    ';
+}
+echo '                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group row mb-3">
+                            <label class="col-lg-4 col-form-label required fw-bold fs-6">Số tài khoản:</label>
+                            <div class="col-lg-8 fv-row">
+                                <input type="text" id="stk" class="form-control" placeholder="Nhập số tài khoản cần rút">
+                            </div>
+                        </div>
+                        <div class="form-group row mb-3">
+                            <label class="col-lg-4 col-form-label required fw-bold fs-6">Chủ tài khoản:</label>
+                            <div class="col-lg-8 fv-row">
+                                <input type="text" id="name" class="form-control" placeholder="Nhập tên chủ tài khoản">
+                            </div>
+                        </div>
+                        <div class="form-group row mb-3">
+                            <label class="col-lg-4 col-form-label required fw-bold fs-6">Số tiền cần rút:</label>
+                            <div class="col-lg-8 fv-row">
+                                <input type="number" id="amount" class="form-control" placeholder="Nhập số dư cần rút">
+
+                            </div>
+                        </div>
+                        <div class="form-group row mb-3">
+                            <div class="col-lg-12 fv-row text-center">
+                                <button type="button" id="btnRutTien" class="btn btn-danger"><i class="fas fa-money-check-alt"></i>
+                                    RÚT NGAY</button>
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="callout callout-info">
+                            <h5>Lưu ý</h5>
+                            ';
+echo $db->site('notice_withdraw_ctv');
+echo '                        </div>
+
+                    </div>
+
+                </div>
+            </div>
+        </div>
+        <div class="block block-rounded">
+            <div class="block-header block-header-default">
+                <div class="block-title">
+                    DANH SÁCH TÀI KHOẢN ĐÃ BÁN
+                </div>
+            </div>
+            <div class="block-content">
+                <div class="row mb-2">
+                    <div class="col-sm-12 mb-3">
+                        <form action="" name="formSearch" method="GET">
+                            <div class="row">
+                                <div class="mb-3 col-12 col-sm-6 col-lg-3">
+                                    <input type="text" class="form-control" value="';
+echo $stk;
+echo '" name="stk" placeholder="Số tài khoản">
+                                </div>
+                                <div class="mb-3 col-12 col-sm-6 col-lg-3">
+                                    <input type="text" class="form-control" value="';
+echo $banks;
+echo '" name="bank" placeholder="Ngân hàng">
+                                </div>
+                                <div class="col-12 col-sm-6 col-lg-3 mb-2">
+                                    <input type="text" name="create_date" class="form-control js-flatpickr" id="example-flatpickr-range" value="';
+echo $create_date;
+echo '" placeholder="Chọn thời gian" data-mode="range">
+                                </div>
+                                <div class="col-sm-4 mb-2">
+                                    <button type="submit" name="submit" value="filter" class="btn btn-info"><i class="fa fa-search"></i>
+                                        Tìm kiếm
+                                    </button>
+                                    <a class="btn btn-danger" href="/ctv/withdraw"><i class="fa fa-trash"></i>
+                                        Reset
+                                    </a>
+                                </div>
+
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-lg-12 m--margin-bottom-10-tablet-and-mobile" style="font-size: 14px ">
+                        Tổng số đơn đã rút: <b id="total_record">';
+echo format_cash($totalTransactions);
+echo '</b> -
+                        Đang xử lý: <b>';
+echo format_cash($status0Transactions ?? 0);
+echo '</b> - Đã hủy:
+                        <b>';
+echo format_cash($status1Transactions ?? 0);
+echo '</b> - Đã thanh toán:
+                        <b>';
+echo format_cash($status3Transactions ?? 0);
+echo '</b>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table id="datatable1" class="table table-bordered table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Mã giao dịch</th>
+                                <th>CTV</th>
+                                <th>Thông tin</th>
+                                <th>Số tiền</th>
+                                <th>Nội dung</th>
+                                <th>Trạng thái</th>
+                                <th>Thời Gian</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ';
+$i = 2;
+foreach ($listOrder as $row) {
+    echo '                                <tr>
+                                    <td>';
+    echo $row['trans_id'];
+    echo '</td>
+                                    <td>';
+    echo getRowRealTime('users', $row['user_id'], 'username');
+    echo '</td>
+
+                                    <td>
+                                        <ul>
+                                            <li>Ngân hàng: ';
+    echo $row['bank'];
+    echo '</li>
+                                            <li>Số tài khoản: ';
+    echo $row['stk'];
+    echo '</li>
+                                            <li>Chủ tài khoản: ';
+    echo $row['name'];
+    echo '</li>
+                                        </ul>
+                                    </td>
+                                    <td><b style="color:red">';
+    echo format_cash($row['amount']);
+    echo '</b></td>
+                                    <td><textarea class="form-control">';
+    echo $row['reason'];
+    echo '</textarea></td>
+                                    <td>';
+    echo status_withdraw($row['status']);
+    echo '</td>
+                                    <td>';
+    echo $row['update_gettime'];
+    echo '</td>
+                                </tr>
+                            ';
+}
+echo '                        </tbody>
+                    </table>
+                </div>
+                <div class="row">
+                    <div class="col-sm-12 col-md-5">
+
+                    </div>
+                    <div class="col-sm-12 col-md-7">
+                        ';
+$total = $db->num_rows(' SELECT * FROM `withdraw_ctv` WHERE ' . $where . ' AND `user_id` = \'' . $data_user['id'] . '\' ORDER BY id DESC ');
+if ($sotin1trang < $total) {
+    echo '<center>' . pagination('/ctv/withdraw?stk=' . $stk . '&create_date=' . $create_date . '&bank=' . $banks . '&', $from, $total, $sotin1trang) . '</center>';
+}
+echo '                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    </div>
+</main>
+<script>
+    $("#btnRutTien").on("click", function() {
+        $(\'#btnRutTien\').html(\'<i class="fa fa-spinner fa-spin"></i> Đang xử lý...\').prop(\'disabled\',
+            true);
+        $.ajax({
+            url: "/model/ctv/withdraw",
+            method: "POST",
+            dataType: "JSON",
+            data: {
+                csrf_token:csrf_token,
+                bank: $(\'#bank\').val(),
+                stk: $(\'#stk\').val(),
+                name: $(\'#name\').val(),
+                amount: $(\'#amount\').val()
+            },
+            success: function(respone) {
+                if (respone.status == \'success\') {
+                    showMessage(respone.msg, respone.status);
+                } else {
+                    showMessage(respone.msg, respone.status);
+                }
+                $(\'#btnRutTien\').html(\'<i class="fas fa-money-check-alt"></i> RÚT NGAY\')
+                    .prop(\'disabled\', false);
+            }
+        })
+    });
+</script>
+';
+require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/ctv/views/footer.php';

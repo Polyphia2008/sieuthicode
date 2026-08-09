@@ -1,0 +1,243 @@
+<?php
+// statically decompiled from account.php  [structured; all 2 record(s) structured]
+
+require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/libs/init.php';
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    if ($user) {
+        if ($data_user['ctv'] != 1) {
+            exit(JsonMsg('error', 'Bạn không có quyền truy cập vào trang này'));
+        } else {
+            if ($data_user['ctv_account'] != 1) {
+                exit(JsonMsg('error', 'Bạn không có quyền thực hiện chức năng bán tài khoản'));
+            } else {
+                if ($db->site('status_demo') != 0) {
+                    exit(JsonMsg('error', 'Đây là trang web demo bạn không thể thực hiện chức năng này !'));
+                } else {
+                    $action = Anti_xss($_POST['action']);
+                    if (empty($action)) {
+                        exit(JsonMsg('error', 'Vui lòng chọn dữ liệu'));
+                    } else {
+                        switch ($action) {
+                            case 'add':
+                                $type_category = Anti_xss($_POST['type_category']);
+                                $link_anh = [];
+                                $arr_data = [];
+                                $date = time();
+                                if ($db->num_rows('SELECT * FROM `subcategory` WHERE `type_category` = \'' . $type_category . '\' AND `type` IN (\'ACCOUNT\',\'RANDOM\')') < 1) {
+                                    exit(JsonMsg('error', 'Không tìm thấy danh mục tài khoản'));
+                                } else {
+                                    $query = $db->get_row('SELECT * FROM `subcategory` WHERE `type_category` = \'' . $type_category . '\' AND `type` IN (\'ACCOUNT\',\'RANDOM\')');
+                                    $detail = json_decode($query['detail'], true);
+                                    $selected_roles = explode(',', $data_user['role_category']);
+                                    if (!in_array($query['id'], $selected_roles)) {
+                                        exit(JsonMsg('error', 'Bạn không có quyền hạn đăng tài khoản ở danh mục này'));
+                                    } else {
+                                        if ($query['type'] == 'ACCOUNT') {
+                                            $total_price_account = $db->get_row('SELECT SUM(`money`) FROM `accounts` WHERE `username_post` = \'' . $data_user['username'] . '\'')['SUM(`money`)'] ?? 0;
+                                            if ($data_user['maxprice'] < $total_price_account) {
+                                                exit(JsonMsg('error', 'Tổng tiền acc bạn đã đăng vượt quá ' . format_cash($data_user['maxprice']) . ' vui lòng liên hệ ADMIN để nâng cấp'));
+                                            } else {
+                                                $cash = Anti_xss($_POST['cash']);
+                                                $sale = Anti_xss($_POST['sale']);
+                                                if ($cash < 0) {
+                                                    exit(JsonMsg('error', 'Giá tiền không được dưới 0đ'));
+                                                } else {
+                                                    if ($sale < 0) {
+                                                        exit(JsonMsg('error', 'Khuyến mại không được dưới 0%'));
+                                                    } else {
+                                                        if (100 < $sale) {
+                                                            exit(JsonMsg('error', 'Khuyến mại không được trên 100%'));
+                                                        } else {
+                                                            if (count($_FILES['image']['name']) < 1) {
+                                                                exit(JsonMsg('error', 'Bạn đang thiếu hình ảnh'));
+                                                            } else {
+                                                                $i = 2;
+                                                                while ($i < count($_FILES['image']['name'])) {
+                                                                    array_push($link_anh, upload_multiple_file('image', 'product', $i));
+                                                                    ++$i;
+                                                                }
+                                                                $i = 2;
+                                                                while ($i < count($detail['data'])) {
+                                                                    if ($detail['data'][$i]['name'] == 'taikhoan' || $detail['data'][$i]['name'] == 'matkhau') {
+                                                                        $name = encryptData(Anti_xss($_POST[$detail['data'][$i]['name']]));
+                                                                    } else {
+                                                                        $name = Anti_xss($_POST[$detail['data'][$i]['name']]);
+                                                                    }
+                                                                    array_push($arr_data, ['id' => $i, 'label' => $detail['data'][$i]['label'], 'type' => $detail['data'][$i]['type'], 'name' => $detail['data'][$i]['name'], 'value' => encryptData(Anti_xss($_POST[$detail['data'][$i]['name']])), 'show' => $detail['data'][$i]['show'], $detail['data'][$i]['name'] => $name]);
+                                                                    ++$i;
+                                                                }
+                                                                $json_image = json_encode($link_anh);
+                                                                $json['author'] = 'db.NET';
+                                                                $json['name_product'] = $detail['name_product'];
+                                                                $json['data'] = $arr_data;
+                                                                $full_detail = addslashes(json_encode($json));
+                                                                $db->query('INSERT INTO `accounts`(`sub_id`,`type`, `type_category`, `username_post`, `detail`, `image`, `money`, `sale`, `updated_at`, `created_at`) VALUES (\'' . $query['id'] . '\',\'' . $query['type'] . '\', \'' . $type_category . '\', \'' . $data_user['username'] . '\', \'' . $full_detail . '\', \'' . $json_image . '\', \'' . $cash . '\', \'' . $sale . '\',\'' . $date . '\', \'' . $date . '\')');
+                                                                insert_log($data_user['id'], 'Thêm tài khoản ' . $detail['name_product'] . '');
+                                                                exit(JsonMsg('success', 'Đăng tài khoản thành công'));
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        } else {
+                                            if ($query['type'] == 'RANDOM') {
+                                                $data = Anti_xss($_POST['data']);
+                                                if (empty($data)) {
+                                                    exit(JsonMsg('error', 'Vui lòng nhập dữ liệu cần đăng'));
+                                                } else {
+                                                    function upload_random($arr, $account, $name_product)
+{
+    $i = 2;
+    while ($i < count($arr)) {
+        $arr_data[] = ['id' => $i, 'label' => $arr[$i]['label'], 'type' => $arr[$i]['type'], 'name' => $arr[$i]['name'], 'value' => encryptData($account[$i]), 'show' => $arr[$i]['show']];
+        $json['author'] = 'db.NET';
+        $json['name_product'] = $name_product;
+        $json['data'] = $arr_data;
+        ++$i;
+    }
+    return $json;
+}
+                                                    $arr = $detail['data'];
+                                                    $data = explode('
+', $data);
+                                                    $z = 2;
+                                                    $cash_random = $detail['cash'] * count($data);
+                                                    $total_price_account = $db->get_row('SELECT SUM(`money`) FROM `accounts` WHERE `username_post` = \'' . $data_user['username'] . '\'')['SUM(`money`)'] ?? 0;
+                                                    $total_cash = $total_price_account + $cash_random;
+                                                    if ($data_user['maxprice'] < $total_cash) {
+                                                        exit(JsonMsg('error', 'Tổng tiền acc bạn đã đăng vượt quá ' . format_cash($data_user['maxprice']) . ' vui lòng liên hệ ADMIN để nâng cấp'));
+                                                    } else {
+                                                        foreach ($data as $key) {
+                                                            $account = explode('|', $data[$z]);
+                                                            $full_json = addslashes(json_encode(upload_random($arr, $account, $detail['name_product'])));
+                                                            $db->query('INSERT INTO `accounts`(`sub_id`,`type`, `type_category`, `username_post`, `detail`, `image`, `money`, `sale`, `updated_at`, `created_at`) VALUES (\'' . $query['id'] . '\',\'' . $query['type'] . '\', \'' . $type_category . '\', \'' . $data_user['username'] . '\', \'' . $full_json . '\', \'\', \'' . $detail['cash'] . '\', \'0\', \'' . $date . '\', \'' . $date . '\')');
+                                                            ++$z;
+                                                        }
+                                                        insert_log($data_user['id'], 'Thêm ' . count($data) . ' tài khoản ' . $detail['name_product'] . '');
+                                                        exit(JsonMsg('success', 'Đăng thành công ' . count($data) . ''));
+                                                    }
+                                                }
+                                            } else {
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            case 'update':
+                                $id = Anti_xss($_POST['id']);
+                                $cash = Anti_xss($_POST['cash']);
+                                $sale = Anti_xss($_POST['sale']);
+                                $type_category = Anti_xss($_POST['type_category']);
+                                $status = Anti_xss($_POST['status']);
+                                $link_anh = [];
+                                $arr_data = [];
+                                $date = time();
+                                if (empty($cash)) {
+                                    exit(JsonMsg('error', 'Vui lòng nhập giá tiền'));
+                                } else {
+                                    if ($cash < 0) {
+                                        exit(JsonMsg('error', 'Giá tiền không được dưới 0đ'));
+                                    } else {
+                                        if ($sale < 0) {
+                                            exit(JsonMsg('error', 'Khuyến mại không được bé hơn 0%'));
+                                        } else {
+                                            if (100 < $sale) {
+                                                exit(JsonMsg('error', 'Khuyến mại không được lớn hơn 100%'));
+                                            } else {
+                                                if (empty($status)) {
+                                                    exit(JsonMsg('error', 'Vui lòng chọn trạng thái tài khoản'));
+                                                } else {
+                                                    if (0 < $db->num_rows('SELECT * FROM `accounts` WHERE `id` = \'' . $id . '\' AND `type_category` = \'' . $type_category . '\' AND `username_post` = \'' . $data_user['username'] . '\'')) {
+                                                        $query_product = $db->get_row('SELECT * FROM `subcategory` WHERE `type_category` = \'' . $type_category . '\' AND `type` IN (\'ACCOUNT\',\'RANDOM\')');
+                                                        $detail = json_decode($query_product['detail'], true);
+                                                        $query = $db->get_row('SELECT * FROM `accounts` WHERE `id` = \'' . $id . '\'');
+                                                        $full_img = '';
+                                                        if ($query['type'] == 'ACCOUNT') {
+                                                            if (1 < count($_FILES['image']['name'])) {
+                                                                $i = 2;
+                                                                while ($i < count($_FILES['image']['name'])) {
+                                                                    array_push($link_anh, upload_multiple_file('image', 'product', $i));
+                                                                    ++$i;
+                                                                }
+                                                                $full_img = json_encode($link_anh);
+                                                            } else {
+                                                                $full_img = $query['image'];
+                                                            }
+                                                        }
+                                                        $i = 2;
+                                                        while ($i < count($detail['data'])) {
+                                                            if ($detail['data'][$i]['name'] == 'taikhoan' || $detail['data'][$i]['name'] == 'matkhau') {
+                                                                $name = encryptData(Anti_xss($_POST[$detail['data'][$i]['name']]));
+                                                            } else {
+                                                                $name = Anti_xss($_POST[$detail['data'][$i]['name']]);
+                                                            }
+                                                            array_push($arr_data, ['id' => $i, 'label' => $detail['data'][$i]['label'], 'type' => $detail['data'][$i]['type'], 'name' => $detail['data'][$i]['name'], 'value' => encryptData(Anti_xss($_POST[$detail['data'][$i]['name']])), 'show' => $detail['data'][$i]['show'], $detail['data'][$i]['name'] => $name]);
+                                                            ++$i;
+                                                        }
+                                                        $json['author'] = 'db.NET';
+                                                        $json['data'] = $arr_data;
+                                                        $full_detail = addslashes(json_encode($json));
+                                                        $db->query('UPDATE `accounts` SET `detail` = \'' . $full_detail . '\',`image` = \'' . $full_img . '\',`money` = \'' . $cash . '\',`sale` = \'' . $sale . '\',`status` = \'' . $status . '\',`updated_at` = \'' . $date . '\' WHERE `id` = \'' . $id . '\'');
+                                                        insert_log($data_user['id'], 'Chỉnh sửa tài khoản #' . $id . '');
+                                                        echo JsonMsg('success', 'Chỉnh sửa thành công tài khoản #' . $id . '');
+                                                    } else {
+                                                        echo JsonMsg('error', 'Không tìm thấy dữ liệu tài khoản');
+                                                    }
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            case 'delete':
+                                $id = Anti_xss($_POST['id']);
+                                if (empty($id)) {
+                                    exit(JsonMsg('error', 'Vui lòng chọn dữ liệu'));
+                                } else {
+                                    $check_account = $db->get_row('SELECT * FROM `accounts` WHERE `id` = ' . $id . ' AND `username_post` = \'' . $data_user['username'] . '\'');
+                                    if (!$check_account) {
+                                        exit(JsonMsg('error', 'Tài khoản không tồn tại'));
+                                    } else {
+                                        $isRemove = $db->remove('accounts', ' `id` = \'' . $id . '\' ');
+                                        if ($isRemove) {
+                                            insert_log($data_user['id'], 'Thực hiện xóa tài khoản [#' . $check_account['id'] . '] ra khỏi hệ thống');
+                                            exit(JsonMsg('success', 'Xóa tài khoản thành công'));
+                                        } else {
+                                            exit(JsonMsg('error', 'Đã xảy ra lỗi khi xóa tài khoản'));
+                                        }
+                                    }
+                                }
+                            case 'deleteSold':
+                                $id = Anti_xss($_POST['id']);
+                                if (empty($id)) {
+                                    exit(JsonMsg('error', 'Vui lòng chọn dữ liệu'));
+                                } else {
+                                    $check_account = $db->get_row('SELECT * FROM `history_buy` WHERE `id` = ' . $id . ' AND `username_post` = \'' . $data_user['username'] . '\'');
+                                    if (!$check_account) {
+                                        exit(JsonMsg('error', 'Tài khoản không tồn tại'));
+                                    } else {
+                                        $isRemove = $db->remove('history_buy', ' `id` = \'' . $id . '\' ');
+                                        if ($isRemove) {
+                                            $db->query('DELETE FROM `accounts` WHERE `id` = \'' . $check_account['id_acc'] . '\' AND `username_post` = \'' . $data_user['username'] . '\'');
+                                            insert_log($data_user['id'], 'Thực hiện xóa tài khoản đã bán [#' . $check_account['id'] . '] ra khỏi hệ thống');
+                                            exit(JsonMsg('success', 'Xóa tài khoản thành công'));
+                                        } else {
+                                            exit(JsonMsg('error', 'Đã xảy ra lỗi khi xóa tài khoản'));
+                                        }
+                                    }
+                                }
+                            case 'deleteAllSold':
+                                $db->query('DELETE FROM `accounts` WHERE `status` = \'off\' AND `username_post` = \'' . $data_user['username'] . '\'');
+                                insert_log($data_user['id'], 'Thực hiện xóa toàn bộ tài khoản đã bán ra khỏi hệ thống');
+                                exit(JsonMsg('success', 'Xóa tài khoản thành công'));
+                            default:
+                                break;
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        exit(JsonMsg('error', 'Vui lòng đăng nhập để thực hiện'));
+    }
+}

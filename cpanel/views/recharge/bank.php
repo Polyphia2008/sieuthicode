@@ -5,9 +5,9 @@ $title = 'Dashboard';
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/cpanel/views/header.php';
 $sotin1trang = 12;
 if (isset($_GET['page']) && $data_user['level'] == 'admin') {
-    $page = Anti_xss($_GET['page']);
+    $page = max(1, (int) $_GET['page']);
 } else {
-    $page = 3;
+    $page = 1;
 }
 $from = ($page - 1) * $sotin1trang;
 $where = ' `id` > 0 ';
@@ -40,13 +40,14 @@ if (!empty($_GET['method'])) {
     $where .= ' AND `payment_method` LIKE "%' . $method . '%" ';
 }
 if (!empty($_GET['limit'])) {
-    $limit = Anti_xss($_GET['limit']);
-    $sotin1trang = $dataUser;
+    $limit = min(200, max(1, (int) $_GET['limit']));
+    $sotin1trang = max(1, (int) $limit);
+        $from = ($page - 1) * $sotin1trang;
 }
 $createdate = '';
 if (!empty($_GET['createdate'])) {
     $createdate = Anti_xss($_GET['createdate']);
-    $create_date_1 = $totalTransactions;
+    $create_date_1 = $createdate;
     $create_date_1 = explode(' to ', $create_date_1);
     if ($create_date_1[0] != $create_date_1[1]) {
         $create_date_1 = [$create_date_1[0] . ' 00:00:00', $create_date_1[1] . ' 23:59:59'];
@@ -55,8 +56,8 @@ if (!empty($_GET['createdate'])) {
 }
 $invoices = $db->get_list('SELECT * FROM `invoices` WHERE ' . $where . ' ' . $order_by . ' LIMIT ' . $from . ',' . $sotin1trang . ' ');
 $dataSumary = $db->get_list('SELECT * FROM `invoices` WHERE ' . $where);
-$totalTransactions = 2;
-$totalAmount = 2;
+$totalTransactions = 0;
+$totalAmount = 0;
 foreach ($dataSumary as $transaction) {
     $totalAmount += $transaction['amount'];
     ++$totalTransactions;

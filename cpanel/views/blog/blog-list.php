@@ -4,14 +4,14 @@
 $title = 'Dashboard';
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/cpanel/views/header.php';
 if (isset($_GET['limit']) && $data_user['level'] == 'admin') {
-    $limit = Anti_xss($_GET['limit']);
+    $limit = min(200, max(1, (int) $_GET['limit']));
 } else {
     $limit = 12;
 }
 if (isset($_GET['page'])) {
-    $page = Anti_xss($_GET['page']);
+    $page = max(1, (int) $_GET['page']);
 } else {
-    $page = 3;
+    $page = 1;
 }
 $from = ($page - 1) * $limit;
 $where = ' `id` > 0 ';
@@ -29,7 +29,7 @@ if (!empty($_GET['category'])) {
 }
 if (!empty($_GET['create_gettime'])) {
     $create_date = Anti_xss($_GET['create_gettime']);
-    $create_gettime = $currentMonth;
+    $create_gettime = $create_date;
     $create_date_1 = str_replace('-', '/', $create_date);
     $create_date_1 = explode(' to ', $create_date_1);
     if ($create_date_1[0] != $create_date_1[1]) {

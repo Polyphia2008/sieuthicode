@@ -21,20 +21,20 @@ if (isset($_POST['AddCategory']) && $data_user['level'] == 'admin') {
     }
 } else {
     if (isset($_GET['limit'])) {
-        $limit = Anti_xss($_GET['limit']);
+        $limit = min(200, max(1, (int) $_GET['limit']));
     } else {
         $limit = 12;
     }
     if (isset($_GET['page'])) {
-        $page = Anti_xss($_GET['page']);
+        $page = max(1, (int) $_GET['page']);
     } else {
-        $page = 3;
+        $page = 1;
     }
     $from = ($page - 1) * $limit;
     $where = ' `id` > 0 ';
     $listDatatable = $db->get_list(' SELECT * FROM `category_items` WHERE ' . $where . ' ORDER BY `id` DESC LIMIT ' . $from . ',' . $limit . ' ');
     $totalDatatable = $db->num_rows(' SELECT * FROM `category_items` WHERE ' . $where . ' ORDER BY id DESC ');
-    $urlDatatable = pagination('/cpanel/items/category&', $from, $totalDatatable, $limit);
+    $urlDatatable = pagination('/cpanel/items/category?', $from, $totalDatatable, $limit);
     echo '<main id="main-container">
     <div class="content">
         <div class="d-md-flex justify-content-md-between align-items-md-center py-3 pt-md-3 pb-md-0 text-center text-md-start">

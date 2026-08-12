@@ -15,9 +15,9 @@ if (isset($_POST['AddCoupon']) && $data_user['level'] == 'admin') {
 } else {
     $sotin1trang = 12;
     if (isset($_GET['page'])) {
-        $page = Anti_xss($_GET['page']);
+        $page = max(1, (int) $_GET['page']);
     } else {
-        $page = 3;
+        $page = 1;
     }
     $from = ($page - 1) * $sotin1trang;
     $where = ' `id` > 0 ';
@@ -25,8 +25,9 @@ if (isset($_POST['AddCoupon']) && $data_user['level'] == 'admin') {
     $limit = '';
     $code = '';
     if (!empty($_GET['limit'])) {
-        $limit = Anti_xss($_GET['limit']);
-        $sotin1trang = $coupons;
+        $limit = min(200, max(1, (int) $_GET['limit']));
+        $sotin1trang = max(1, (int) $limit);
+        $from = ($page - 1) * $sotin1trang;
     }
     if (!empty($_GET['code'])) {
         $code = Anti_xss($_GET['code']);
@@ -35,7 +36,7 @@ if (isset($_POST['AddCoupon']) && $data_user['level'] == 'admin') {
     $createdate = '';
     if (!empty($_GET['createdate'])) {
         $createdate = Anti_xss($_GET['createdate']);
-        $create_date_1 = $total;
+        $create_date_1 = $createdate;
         $create_date_1 = explode(' to ', $create_date_1);
         if ($create_date_1[0] != $create_date_1[1]) {
             $create_date_1 = [$create_date_1[0] . ' 00:00:00', $create_date_1[1] . ' 23:59:59'];

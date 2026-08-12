@@ -10,17 +10,17 @@ if (!$user) {
     require_once realpath($_SERVER['DOCUMENT_ROOT'] . '/views/header.php');
     $sotin1trang = 6;
     if (isset($_GET['page'])) {
-        $page = Anti_xss($_GET['page']);
+        $page = max(1, (int) $_GET['page']);
     } else {
-        $page = 3;
+        $page = 1;
     }
     $from = ($page - 1) * $sotin1trang;
     $where = ' `id` > 0 AND `user_id` ="' . $data_user['id'] . '"';
     $limit = 6;
     if (isset($_GET['pages'])) {
-        $pages = Anti_xss($_GET['pages']);
+        $pages = max(1, (int) $_GET['pages']);
     } else {
-        $pages = 3;
+        $pages = 1;
     }
     $froms = ($pages - 1) * $limit;
     $wheres = ' `id` > 0 AND `user_id` ="' . $data_user['id'] . '"';

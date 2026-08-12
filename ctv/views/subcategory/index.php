@@ -4,14 +4,14 @@
 $title = 'Dashboard';
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/ctv/views/header.php';
 if (isset($_GET['limit'])) {
-    $limit = Anti_xss($_GET['limit']);
+    $limit = min(200, max(1, (int) $_GET['limit']));
 } else {
     $limit = 12;
 }
 if (isset($_GET['page'])) {
-    $page = Anti_xss($_GET['page']);
+    $page = max(1, (int) $_GET['page']);
 } else {
-    $page = 3;
+    $page = 1;
 }
 $from = ($page - 1) * $limit;
 $where = ' `id` > 0 ';

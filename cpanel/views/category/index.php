@@ -17,7 +17,7 @@ if (isset($_POST['AddCategory']) && $data_user['level'] == 'admin') {
                 $tmp_name = $_FILES['icon']['tmp_name'];
                 $addlogo = move_uploaded_file($tmp_name, realpath($_SERVER['DOCUMENT_ROOT']) . $uploads_dir);
                 if ($addlogo) {
-                    $icon = $limit;
+                    $icon = $uploads_dir;
                 }
             }
             $isInsert = $db->insert('categories', ['stt' => Anti_xss($_POST['stt']), 'name' => Anti_xss($_POST['name']), 'slug' => create_slug(Anti_xss($_POST['name'])), 'icon' => $icon, 'content' => isset($_POST['content']) ? base64_encode($_POST['content']) : null]);
@@ -31,14 +31,14 @@ if (isset($_POST['AddCategory']) && $data_user['level'] == 'admin') {
     }
 } else {
     if (isset($_GET['limit'])) {
-        $limit = Anti_xss($_GET['limit']);
+        $limit = min(200, max(1, (int) $_GET['limit']));
     } else {
         $limit = 12;
     }
     if (isset($_GET['page'])) {
-        $page = Anti_xss($_GET['page']);
+        $page = max(1, (int) $_GET['page']);
     } else {
-        $page = 3;
+        $page = 1;
     }
     $from = ($page - 1) * $limit;
     $where = ' `id` > 0 ';

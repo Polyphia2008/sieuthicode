@@ -185,10 +185,11 @@ function RemoveCredits($user_id, $amount, $reason)
     }
 }
 
-function PlusCredits($user_id, $amount, $reason)
+function PlusCredits($user_id, $amount, $reason, $transactionId = null)
 {
     global $db;
-    $db->insert('log_balance', ['trans_id' => strtoupper('GD' . substr(md5(uniqid(mt_rand(), true)), 0, 16)), 'money_before' => getrowuser($user_id, 'money'), 'money_change' => $amount, 'money_after' => getrowuser($user_id, 'money') + $amount, 'time' => gettime(), 'type' => '+', 'content' => $reason, 'user_id' => $user_id]);
+    $transactionId = $transactionId ?: strtoupper('GD' . substr(md5(uniqid(mt_rand(), true)), 0, 16));
+    $db->insert('log_balance', ['trans_id' => $transactionId, 'money_before' => getrowuser($user_id, 'money'), 'money_change' => $amount, 'money_after' => getrowuser($user_id, 'money') + $amount, 'time' => gettime(), 'type' => '+', 'content' => $reason, 'user_id' => $user_id]);
     $isPlus = $db->cong('users', 'money', $amount, ' `id` = \'' . $user_id . '\' ');
     if ($isPlus) {
         $db->cong('users', 'total_money', $amount, ' `id` = \'' . $user_id . '\' ');
@@ -260,7 +261,7 @@ function pusher($username = null, $data_array = null)
     global $db;
     $pushdata = $db->get_row('SELECT * FROM `tb_pusher` ORDER BY RAND() LIMIT 1');
     $options = ['cluster' => $pushdata['pusher_cluster'], 'useTLS' => true];
-    $pusher = new Pusher\\Pusher($pushdata['pusher_key'], $pushdata['pusher_secret'], $pushdata['pusher_app_id'], $options);
+    $pusher = new Pusher\Pusher($pushdata['pusher_key'], $pushdata['pusher_secret'], $pushdata['pusher_app_id'], $options);
     return $pusher->trigger($username, 'realtime', $data_array);
 }
 
@@ -285,7 +286,7 @@ function sendCSM($mail_nhan, $ten_nhan, $chu_de, $noi_dung, $bcc = '', $path = '
 {
     global $db;
     if ($db->site('pass_email_smtp') != '' && $db->site('smtp_status') == 1) {
-        $mail = new PHPMailer\\PHPMailer\\PHPMailer();
+        $mail = new PHPMailer\PHPMailer\PHPMailer();
         $mail->SMTPDebug = 0;
         $mail->Debugoutput = 'html';
         $mail->isSMTP();
@@ -297,7 +298,9 @@ function sendCSM($mail_nhan, $ten_nhan, $chu_de, $noi_dung, $bcc = '', $path = '
         $mail->Port = 587;
         $mail->setFrom($db->site('email_smtp'), $bcc);
         $mail->addAddress($mail_nhan, $ten_nhan);
-        $mail->addAttachment($path);
+        if ($path !== '' && is_file($path)) {
+            $mail->addAttachment($path);
+        }
         $mail->addReplyTo($db->site('email_smtp'), $bcc);
         $mail->isHTML(true);
         $mail->Subject = $chu_de;
@@ -450,8 +453,8 @@ function getProductFlashSale($productID)
                                           JOIN flash_sale_products fsp ON fs.id = fsp.flash_sale_id
                                           WHERE fsp.product_id = \'' . $productID . '\'');
     $flashSaleStatus = 'Không có chương trình flash sale';
-    $discountPrice = 2;
-    $flashSaleID = 2;
+    $discountPrice = 0;
+    $flashSaleID = 0;
     if ($flashSaleProduct) {
         $flashSaleID = $flashSaleProduct['flash_sale_id'];
         $flashSale = getflashsale($flashSaleID);
@@ -463,6 +466,8 @@ function getProductFlashSale($productID)
             return ['flashSaleID' => $flashSaleID, 'flashSaleStatus' => $flashSaleStatus, 'discountPrice' => $discountPrice, 'start_time' => $flashSaleProduct['start_time'] ?? '', 'end_time' => $flashSaleProduct['end_time'] ?? ''];
         }
     }
+
+    return ['flashSaleID' => 0, 'flashSaleStatus' => $flashSaleStatus, 'discountPrice' => 0, 'start_time' => '', 'end_time' => ''];
 }
 
 function debit_processing($user_id)

@@ -6,9 +6,9 @@ $title = 'Đánh giá khách hàng | ' . $db->site('title');
 require_once realpath($_SERVER['DOCUMENT_ROOT'] . '/views/header.php');
 $sotin1trang = 18;
 if (isset($_GET['page'])) {
-    $page = Anti_xss($_GET['page']);
+    $page = max(1, (int) $_GET['page']);
 } else {
-    $page = 3;
+    $page = 1;
 }
 $where = ' `id` > 0';
 $seller_id = '';

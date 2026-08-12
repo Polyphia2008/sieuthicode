@@ -49,11 +49,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                                             } else {
                                                                 $coin = $result['data']['value'];
                                                                 $text = $result['data']['text'];
-                                                                if (strpos($coin, ',') !== false) {
-                                                                    $data_array = explode(',', $coin);
-                                                                    $coin = rand($data_array[0], $data_array[1]);
+                                                                if (strpos((string) $coin, ',') !== false) {
+                                                                    $data_array = array_map('intval', explode(',', $coin));
+                                                                    $coin = rand(min($data_array), max($data_array));
                                                                 } else {
-                                                                    $coin = $trans_id;
+                                                                    $coin = (int) $coin;
                                                                 }
                                                                 $content = $text;
                                                                 $trans_id = strtoupper('GD' . substr(md5(uniqid(mt_rand(), true)), 0, 16));
@@ -107,11 +107,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                             } else {
                                                 $coin = $result['data']['value'];
                                                 $text = $result['data']['text'];
-                                                if (strpos($coin, ',') !== false) {
-                                                    $data_array = explode(',', $coin);
-                                                    $coin = rand($data_array[0], $data_array[1]);
+                                                if (strpos((string) $coin, ',') !== false) {
+                                                    $data_array = array_map('intval', explode(',', $coin));
+                                                    $coin = rand(min($data_array), max($data_array));
                                                 } else {
-                                                    $coin = $trans_id;
+                                                    $coin = (int) $coin;
                                                 }
                                                 $content = '( Quay Thử ): ' . $text . '!';
                                                 exit(json_encode(['status' => 'success', 'msg' => $content, 'location' => $result['location'] ?? null]));

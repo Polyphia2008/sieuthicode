@@ -9,13 +9,14 @@ if (isset($_POST['AddSpin']) && $data_user['level'] == 'admin') {
     } else {
         $cover = null;
         $image = null;
+        $play = null;
         if (check_img('cover')) {
             $rand = random('0123456789QWERTYUIOPASDGHJKLZXCVBNM', 4);
             $uploads_dir = '/upload/spin/spin' . $rand . '.png';
             $tmp_name = $_FILES['cover']['tmp_name'];
             $addlogo = move_uploaded_file($tmp_name, realpath($_SERVER['DOCUMENT_ROOT']) . $uploads_dir);
             if ($addlogo) {
-                $cover = $uploads_dirs;
+                $cover = $uploads_dir;
             }
         }
         if (check_img('image')) {
@@ -24,7 +25,7 @@ if (isset($_POST['AddSpin']) && $data_user['level'] == 'admin') {
             $tmp_names = $_FILES['image']['tmp_name'];
             $addlogos = move_uploaded_file($tmp_names, realpath($_SERVER['DOCUMENT_ROOT']) . $uploads_dirs);
             if ($addlogos) {
-                $image = $uploads_dirss;
+                $image = $uploads_dirs;
             }
         }
         if (check_img('play')) {
@@ -33,7 +34,7 @@ if (isset($_POST['AddSpin']) && $data_user['level'] == 'admin') {
             $tmp_namess = $_FILES['play']['tmp_name'];
             $addlogoss = move_uploaded_file($tmp_namess, realpath($_SERVER['DOCUMENT_ROOT']) . $uploads_dirss);
             if ($addlogoss) {
-                $play = $isInsert;
+                $play = $uploads_dirss;
             }
         }
         $isInsert = $db->insert('spin_quests', ['stt' => Anti_xss($_POST['stt']), 'cover' => $cover, 'image' => $image, 'play' => $play, 'name' => Anti_xss($_POST['name']), 'prizes' => json_encode([]), 'price' => Anti_xss($_POST['price']), 'status' => Anti_xss($_POST['status']), 'created_at' => gettime(), 'updated_at' => gettime()]);

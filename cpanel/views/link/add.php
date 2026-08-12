@@ -14,7 +14,7 @@ if (isset($_POST['AddLink']) && $data_user['level'] == 'admin') {
             $tmp_name = $_FILES['image']['tmp_name'];
             $addlogo = move_uploaded_file($tmp_name, realpath($_SERVER['DOCUMENT_ROOT']) . $uploads_dir);
             if ($addlogo) {
-                $url_icon = $title;
+                $url_icon = $uploads_dir;
             }
         }
         $isInsert = $db->insert('links', ['image' => $url_icon, 'title' => Anti_xss($_POST['title']), 'link' => Anti_xss($_POST['link']), 'slug' => create_slug(Anti_xss($_POST['title'])), 'status' => Anti_xss($_POST['status']), 'created_at' => gettime()]);

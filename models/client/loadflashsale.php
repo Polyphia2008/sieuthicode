@@ -33,8 +33,8 @@ if ($flashsale) {
         }
     }
 } else {
-    $start_timestamp = 2;
-    $end_timestamp = 2;
+    $start_timestamp = 0;
+    $end_timestamp = 0;
     $status = 'Đã kết thúc';
 }
 echo '<div class="header-flashsale">

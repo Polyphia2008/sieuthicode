@@ -19,19 +19,18 @@ if (!$user || $data_user['ctv'] != 1) {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
     <title>STC PANEL</title>
-    <meta name="description" content="Dashmix - Bootstrap 5 Admin Template &amp; UI Framework created by pixelcave | This is the demo of Dashmix! You need to purchase a license for legal use! | DEMO">
-    <meta name="author" content="pixelcave">
-    <meta name="robots" content="index, follow">
-    <meta property="og:title" content="Dashmix - Bootstrap 5 Admin Template &amp; UI Framework | DEMO">
-    <meta property="og:site_name" content="Dashmix">
-    <meta property="og:description" content="Dashmix - Bootstrap 5 Admin Template &amp; UI Framework created by pixelcave | This is the demo of Dashmix! You need to purchase a license for legal use! | DEMO">
+    <meta name="description" content="Khu vực quản lý cộng tác viên">
+    <meta name="author" content="STC">
+    <meta name="robots" content="noindex, nofollow">
+    <meta property="og:title" content="STC PANEL">
+    <meta property="og:site_name" content="STC PANEL">
+    <meta property="og:description" content="Khu vực quản lý cộng tác viên">
     <meta property="og:type" content="website">
     <meta property="og:url" content="">
     <meta property="og:image" content="">
-    <link rel="shortcut icon" href="assets/media/favicons/favicon.png">
-    <link rel="icon" type="image/png" sizes="192x192" href="assets/media/favicons/favicon-192x192.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="assets/media/favicons/apple-touch-icon-180x180.png">
-    <link rel="stylesheet" href="/assets/back-end/js/plugins/magnific-popup/magnific-popup.css">
+    <link rel="icon" href="';
+    echo DOMAIN . $db->site('favicon');
+    echo '" type="image/x-icon">
     <!-- <link rel="stylesheet" href="/assets/back-end/js/plugins/datatables-bs5/css/dataTables.bootstrap5.min.css">
     <link rel="stylesheet" href="/assets/back-end/js/plugins/datatables-buttons-bs5/css/buttons.bootstrap5.min.css">
     <link rel="stylesheet" href="/assets/back-end/js/plugins/datatables-responsive-bs5/css/responsive.bootstrap5.min.css"> -->

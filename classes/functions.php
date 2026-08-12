@@ -17,20 +17,19 @@ function Anti_xss($data)
     $data = preg_replace('#(<[^>]+?)style[\\x00-\\x20]*=[\\x00-\\x20]*[`\'"]*.*?behaviour[\\x00-\\x20]*\\([^>]*+>#i', '$1>', $data);
     $data = preg_replace('#(<[^>]+?)style[\\x00-\\x20]*=[\\x00-\\x20]*[`\'"]*.*?s[\\x00-\\x20]*c[\\x00-\\x20]*r[\\x00-\\x20]*i[\\x00-\\x20]*p[\\x00-\\x20]*t[\\x00-\\x20]*:*[^>]*+>#iu', '$1>', $data);
     $data = preg_replace('#</*\\w+:\\w[^>]*+>#i', '', $data);
-    $query_string = $_SERVER['QUERY_STRING'];
+    $query_string = $_SERVER['QUERY_STRING'] ?? '';
     $sql_injection = ['union', 'coockie', 'concat', 'alter', 'exec', 'shell', 'wget', '**/', '/**', '0x3a', 'null', 'DR/**/OP/', 'drop', '/*', '*/', '*', '--', ';', '||', '\' #', 'or 1=1', '\'1\'=\'1', 'BUN', 'S@BUN', 'char', 'OR%', '`', '[', ']', '<', '>', '++', 'script', '1,1', 'substring', 'ascii', 'sleep(', 'insert', 'between', 'values', 'truncate', 'benchmark', 'sql', 'mysql', '%27', '%22', '(', ')', '<?', '<?php', '?>', '../', '/localhost', '127.0.0.1', 'loopback', ':', '%0A', '%0D', '%3C', '%3E', '%00', '%2e%2e', 'input_file', 'execute', 'mosconfig', 'environ', 'scanner', 'path=.', 'mod=.', 'eval\\(', 'javascript:', 'base64_', 'boot.ini', 'etc/passwd', 'self/environ', 'md5', 'echo.*kae', '=%27$', '\'', '"'];
     foreach ($sql_injection as $key) {
         if (255 < strlen($query_string) || strpos(strtolower($query_string), strtolower($key)) !== false) {
             new Redirect('/');
         }
     }
-    $data = addslashes(trim($data));
-    while (true) {
-        $old_data = $old_data;
+    $data = addslashes(trim((string) $data));
+    do {
+        $old_data = $data;
         $data = preg_replace('#</*(?:applet|b(?:ase|gsound|link)|embed|frame(?:set)?|i(?:frame|layer)|l(?:ayer|ink)|meta|object|s(?:cript|tyle)|title|xml)[^>]*+>#i', '', $data);
-        if (!($old_data !== $data)) { break; }
+    } while ($old_data !== $data);
 
-    }
     return $data;
 }
 
@@ -62,54 +61,56 @@ function qr_bank($type, $stk, $accountname, $amount, $comment)
     return $result;
 }
 
+function paginationWindow($currentPage, $totalPages, $radius = 2)
+{
+    if ($totalPages <= 1) {
+        return [];
+    }
+
+    $pages = [1, $totalPages];
+    for ($page = max(1, $currentPage - $radius); $page <= min($totalPages, $currentPage + $radius); ++$page) {
+        $pages[] = $page;
+    }
+    $pages = array_values(array_unique($pages));
+    sort($pages);
+
+    $window = [];
+    $previous = 0;
+    foreach ($pages as $page) {
+        if ($previous && $page - $previous > 1) {
+            $window[] = null;
+        }
+        $window[] = $page;
+        $previous = $page;
+    }
+    return $window;
+}
+
 function pagination_client($url, $start, $total, $kmess)
 {
-    $out = [];
-    $out[] = '<ul class="pagination pagination-custom">';
-    $neighbors = 4;
-    if ($total <= $start) {
-        $start = max(0, $total - ($total % $kmess == 0 ? $kmess : $total % $kmess));
-    } else {
-        $start = max(0, $start - $start % $kmess);
+    $kmess = max(1, (int) $kmess);
+    $totalPages = (int) ceil(max(0, (int) $total) / $kmess);
+    $currentPage = min(max(1, intdiv(max(0, (int) $start), $kmess) + 1), max(1, $totalPages));
+    if ($totalPages <= 1) {
+        return '';
     }
-    $base_link = '<li class="page-item"><a class="page-link" href="' . strtr($url, ['%' => '%%']) . 'page=%d">%s</a></li>';
-    if (0 < $start) {
-        $prev_page = max(0, $start - $kmess) / $kmess + 1;
-        $out[] = sprintf('<li class="page-item pre-1"><a class="page-link" href="' . strtr($url, ['%' => '%%']) . 'page=%d" rel="prev"></a></li>', $prev_page);
+
+    $baseUrl = htmlspecialchars((string) $url, ENT_QUOTES, 'UTF-8');
+    $out = ['<ul class="pagination pagination-custom">'];
+    if ($currentPage > 1) {
+        $out[] = '<li class="page-item"><a class="page-link" rel="prev" href="' . $baseUrl . 'page=' . ($currentPage - 1) . '">&lsaquo;</a></li>';
     }
-    if ($kmess * $neighbors < $start) {
-        $out[] = sprintf($base_link, 1, '1');
-    }
-    if ($kmess * ($neighbors + 1) < $start) {
-        $out[] = '<li class="page-item disabled"><span class="page-link">...</span></li>';
-    }
-    $nCont = $tmpStart;
-    while (1 <= $nCont) {
-        if ($kmess * $nCont <= $start) {
-            $tmpStart = $start - $kmess * $nCont;
-            $out[] = sprintf($base_link, $tmpStart / $kmess + 1, $tmpStart / $kmess + 1);
+    foreach (paginationWindow($currentPage, $totalPages) as $page) {
+        if ($page === null) {
+            $out[] = '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        } elseif ($page === $currentPage) {
+            $out[] = '<li class="page-item active"><span class="page-link">' . $page . '</span></li>';
+        } else {
+            $out[] = '<li class="page-item"><a class="page-link" href="' . $baseUrl . 'page=' . $page . '">' . $page . '</a></li>';
         }
-        --$nCont;
     }
-    $out[] = '<li class="page-item active"><span class="page-link">' . $start / $kmess + 1 . '</span></li>';
-    $tmpMaxPages = ($total - 1) / $kmess * $kmess;
-    $nCont = 3;
-    while ($nCont <= $neighbors) {
-        if ($start + $kmess * $nCont <= $tmpMaxPages) {
-            $tmpStart = $start + $kmess * $nCont;
-            $out[] = sprintf($base_link, $tmpStart / $kmess + 1, $tmpStart / $kmess + 1);
-        }
-        ++$nCont;
-    }
-    if ($start + $kmess * ($neighbors + 1) < $tmpMaxPages) {
-        $out[] = '<li class="page-item disabled"><span class="page-link">...</span></li>';
-    }
-    if ($start + $kmess * $neighbors < $tmpMaxPages) {
-        $out[] = sprintf($base_link, $tmpMaxPages / $kmess + 1, $tmpMaxPages / $kmess + 1);
-    }
-    if ($start + $kmess < $total) {
-        $next_page = min($total, $start + $kmess) / $kmess + 1;
-        $out[] = sprintf('<li class="page-item next-1"><a class="page-link" href="' . strtr($url, ['%' => '%%']) . 'page=%d" rel="next"></a></li>', $next_page);
+    if ($currentPage < $totalPages) {
+        $out[] = '<li class="page-item"><a class="page-link" rel="next" href="' . $baseUrl . 'page=' . ($currentPage + 1) . '">&rsaquo;</a></li>';
     }
     $out[] = '</ul>';
     return implode('', $out);
@@ -117,51 +118,22 @@ function pagination_client($url, $start, $total, $kmess)
 
 function pagination_account($url, $start, $total, $kmess)
 {
-    $out[] = '<ul class="pagination pagination-custom">';
-    $neighbors = 4;
-    if ($total <= $start) {
-        $start = max(0, $total - ($total % $kmess == 0 ? $kmess : $total % $kmess));
-    } else {
-        $start = max(0, $start - $start % $kmess);
+    $kmess = max(1, (int) $kmess);
+    $totalPages = (int) ceil(max(0, (int) $total) / $kmess);
+    $currentPage = min(max(1, intdiv(max(0, (int) $start), $kmess) + 1), max(1, $totalPages));
+    if ($totalPages <= 1) {
+        return '';
     }
-    $base_link = '<li class="page-item"><a class="page-link" onclick="page=%d;load_account()">%s</a></li>';
-    if (0 < $start) {
-        $prev_page = $start - $kmess;
-        $out[] = sprintf('<li class="page-item pre-1"><a class="page-link" onclick="page=%d;load_account()" rel="prev"></a></li>', $prev_page / $kmess + 1);
-    }
-    if ($kmess * $neighbors < $start) {
-        $out[] = sprintf($base_link, 1, '1');
-    }
-    if ($kmess * ($neighbors + 1) < $start) {
-        $out[] = '<li class="page-item disabled hidden-xs"><span class="page-link">...</span></li>';
-    }
-    $nCont = $tmpStart;
-    while (1 <= $nCont) {
-        if ($kmess * $nCont <= $start) {
-            $tmpStart = $start - $kmess * $nCont;
-            $out[] = sprintf($base_link, $tmpStart / $kmess + 1, $tmpStart / $kmess + 1);
+
+    $out = ['<ul class="pagination pagination-custom">'];
+    foreach (paginationWindow($currentPage, $totalPages) as $page) {
+        if ($page === null) {
+            $out[] = '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        } elseif ($page === $currentPage) {
+            $out[] = '<li class="page-item active"><span class="page-link">' . $page . '</span></li>';
+        } else {
+            $out[] = '<li class="page-item"><a class="page-link" href="javascript:void(0)" onclick="page=' . $page . ';load_account()">' . $page . '</a></li>';
         }
-        --$nCont;
-    }
-    $out[] = '<li class="page-item active"><span class="page-link">' . $start / $kmess + 1 . '</span></li>';
-    $tmpMaxPages = ($total - 1) / $kmess * $kmess;
-    $nCont = 3;
-    while ($nCont <= $neighbors) {
-        if ($start + $kmess * $nCont <= $tmpMaxPages) {
-            $tmpStart = $start + $kmess * $nCont;
-            $out[] = sprintf($base_link, $tmpStart / $kmess + 1, $tmpStart / $kmess + 1);
-        }
-        ++$nCont;
-    }
-    if ($start + $kmess * ($neighbors + 1) < $tmpMaxPages) {
-        $out[] = '<li class="page-item disabled hidden-xs"><span class="page-link">...</span></li>';
-    }
-    if ($start + $kmess * $neighbors < $tmpMaxPages) {
-        $out[] = sprintf($base_link, $tmpMaxPages / $kmess + 1, $tmpMaxPages / $kmess + 1);
-    }
-    if ($start + $kmess < $total) {
-        $next_page = $start + $kmess;
-        $out[] = sprintf('<li class="page-item next-1"><a class="page-link" onclick="page=%d;load_account()" rel="next"></a></li>', $next_page / $kmess + 1);
     }
     $out[] = '</ul>';
     return implode('', $out);
@@ -169,48 +141,29 @@ function pagination_account($url, $start, $total, $kmess)
 
 function pagination($url, $start, $total, $kmess)
 {
-    $out[] = ' <div class="paging_simple_numbers"><ul class="pagination">';
-    $neighbors = 4;
-    if ($total <= $start) {
-        $start = max(0, $total - ($total % $kmess == 0 ? $kmess : $total % $kmess));
-    } else {
-        $start = max(0, $start - $start % $kmess);
+    $kmess = max(1, (int) $kmess);
+    $totalPages = (int) ceil(max(0, (int) $total) / $kmess);
+    $currentPage = min(max(1, intdiv(max(0, (int) $start), $kmess) + 1), max(1, $totalPages));
+    if ($totalPages <= 1) {
+        return '';
     }
-    $base_link = '<li class="paginate_button page-item previous "><a class="page-link" href="' . strtr($url, ['%' => '%%']) . 'page=%d' . '">%s</a></li>';
-    $out[] = $start == 0 ? '' : sprintf($base_link, $start / $kmess, 'Previous');
-    if ($kmess * $neighbors < $start) {
-        $out[] = sprintf($base_link, 1, '1');
+
+    $baseUrl = htmlspecialchars((string) $url, ENT_QUOTES, 'UTF-8');
+    $out = ['<div class="paging_simple_numbers"><ul class="pagination">'];
+    if ($currentPage > 1) {
+        $out[] = '<li class="paginate_button page-item"><a class="page-link" rel="prev" href="' . $baseUrl . 'page=' . ($currentPage - 1) . '">Previous</a></li>';
     }
-    if ($kmess * ($neighbors + 1) < $start) {
-        $out[] = '<li class="paginate_button page-item previous disabled"><a class="page-link">...</a></li>';
-    }
-    $nCont = $tmpMaxPages;
-    while (1 <= $nCont) {
-        if ($kmess * $nCont <= $start) {
-            $tmpStart = $start - $kmess * $nCont;
-            $out[] = sprintf($base_link, $tmpStart / $kmess + 1, $tmpStart / $kmess + 1);
+    foreach (paginationWindow($currentPage, $totalPages) as $page) {
+        if ($page === null) {
+            $out[] = '<li class="paginate_button page-item disabled"><span class="page-link">...</span></li>';
+        } elseif ($page === $currentPage) {
+            $out[] = '<li class="paginate_button page-item active"><span class="page-link">' . $page . '</span></li>';
+        } else {
+            $out[] = '<li class="paginate_button page-item"><a class="page-link" href="' . $baseUrl . 'page=' . $page . '">' . $page . '</a></li>';
         }
-        --$nCont;
     }
-    $out[] = '<li class="paginate_button page-item previous active"><a class="page-link">' . $start / $kmess + 1 . '</a></li>';
-    $tmpMaxPages = ($total - 1) / $kmess * $kmess;
-    $nCont = 3;
-    while ($nCont <= $neighbors) {
-        if ($start + $kmess * $nCont <= $tmpMaxPages) {
-            $tmpStart = $start + $kmess * $nCont;
-            $out[] = sprintf($base_link, $tmpStart / $kmess + 1, $tmpStart / $kmess + 1);
-        }
-        ++$nCont;
-    }
-    if ($start + $kmess * ($neighbors + 1) < $tmpMaxPages) {
-        $out[] = '<li class="paginate_button page-item previous disabled"><a class="page-link">...</a></li>';
-    }
-    if ($start + $kmess * $neighbors < $tmpMaxPages) {
-        $out[] = sprintf($base_link, $tmpMaxPages / $kmess + 1, $tmpMaxPages / $kmess + 1);
-    }
-    if ($start + $kmess < $total) {
-        $display_page = $total < $start + $kmess ? $total : $start / $kmess + 2;
-        $out[] = sprintf($base_link, $display_page, 'Next');
+    if ($currentPage < $totalPages) {
+        $out[] = '<li class="paginate_button page-item"><a class="page-link" rel="next" href="' . $baseUrl . 'page=' . ($currentPage + 1) . '">Next</a></li>';
     }
     $out[] = '</ul></div>';
     return implode('', $out);
@@ -218,48 +171,23 @@ function pagination($url, $start, $total, $kmess)
 
 function pagination2($url, $start, $total, $kmess)
 {
-    $out[] = ' <div class="paging_simple_numbers"><ul class="pagination">';
-    $neighbors = 4;
-    if ($total <= $start) {
-        $start = max(0, $total - ($total % $kmess == 0 ? $kmess : $total % $kmess));
-    } else {
-        $start = max(0, $start - $start % $kmess);
+    $kmess = max(1, (int) $kmess);
+    $totalPages = (int) ceil(max(0, (int) $total) / $kmess);
+    $currentPage = min(max(1, intdiv(max(0, (int) $start), $kmess) + 1), max(1, $totalPages));
+    if ($totalPages <= 1) {
+        return '';
     }
-    $base_link = '<li class="paginate_button page-item previous "><a class="page-link" href="' . strtr($url, ['%' => '%%']) . '%d' . '">%s</a></li>';
-    $out[] = $start == 0 ? '' : sprintf($base_link, $start / $kmess, 'Previous');
-    if ($kmess * $neighbors < $start) {
-        $out[] = sprintf($base_link, 1, '1');
-    }
-    if ($kmess * ($neighbors + 1) < $start) {
-        $out[] = '<li class="paginate_button page-item previous disabled"><a class="page-link">...</a></li>';
-    }
-    $nCont = $tmpMaxPages;
-    while (1 <= $nCont) {
-        if ($kmess * $nCont <= $start) {
-            $tmpStart = $start - $kmess * $nCont;
-            $out[] = sprintf($base_link, $tmpStart / $kmess + 1, $tmpStart / $kmess + 1);
+
+    $baseUrl = htmlspecialchars((string) $url, ENT_QUOTES, 'UTF-8');
+    $out = ['<div class="paging_simple_numbers"><ul class="pagination">'];
+    foreach (paginationWindow($currentPage, $totalPages) as $page) {
+        if ($page === null) {
+            $out[] = '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        } elseif ($page === $currentPage) {
+            $out[] = '<li class="page-item active"><span class="page-link">' . $page . '</span></li>';
+        } else {
+            $out[] = '<li class="page-item"><a class="page-link" href="' . $baseUrl . $page . '">' . $page . '</a></li>';
         }
-        --$nCont;
-    }
-    $out[] = '<li class="paginate_button page-item previous active"><a class="page-link">' . $start / $kmess + 1 . '</a></li>';
-    $tmpMaxPages = ($total - 1) / $kmess * $kmess;
-    $nCont = 3;
-    while ($nCont <= $neighbors) {
-        if ($start + $kmess * $nCont <= $tmpMaxPages) {
-            $tmpStart = $start + $kmess * $nCont;
-            $out[] = sprintf($base_link, $tmpStart / $kmess + 1, $tmpStart / $kmess + 1);
-        }
-        ++$nCont;
-    }
-    if ($start + $kmess * ($neighbors + 1) < $tmpMaxPages) {
-        $out[] = '<li class="paginate_button page-item previous disabled"><a class="page-link">...</a></li>';
-    }
-    if ($start + $kmess * $neighbors < $tmpMaxPages) {
-        $out[] = sprintf($base_link, $tmpMaxPages / $kmess + 1, $tmpMaxPages / $kmess + 1);
-    }
-    if ($start + $kmess < $total) {
-        $display_page = $total < $start + $kmess ? $total : $start / $kmess + 2;
-        $out[] = sprintf($base_link, $display_page, 'Next');
     }
     $out[] = '</ul></div>';
     return implode('', $out);
@@ -358,13 +286,13 @@ function decodecryptData($data)
 
 function check_img($img)
 {
-    $filename = $_FILES[$img]['name'];
-    $ext = explode('.', $filename);
-    $ext = end($ext);
-    $arr_type = ['jpg', 'jpeg', 'png', 'gif'];
-    if (in_array($ext, $arr_type)) {
-        return true;
+    if (!isset($_FILES[$img]) || (int) ($_FILES[$img]['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+        return false;
     }
+
+    $extension = strtolower(pathinfo((string) $_FILES[$img]['name'], PATHINFO_EXTENSION));
+    return in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp'], true)
+        && is_uploaded_file($_FILES[$img]['tmp_name']);
 }
 
 function parse_order_id($des, $memo)
@@ -386,8 +314,8 @@ function timeAgo($time_ago)
     $time_ago = date('Y-m-d H:i:s', $time_ago);
     $time_ago = strtotime($time_ago);
     $cur_time = time();
-    $time_elapsed = $cur_time - $time_ago;
-    $seconds = $days;
+    $time_elapsed = max(0, $cur_time - $time_ago);
+    $seconds = $time_elapsed;
     $minutes = round($time_elapsed / 60);
     $hours = round($time_elapsed / 3600);
     $days = round($time_elapsed / 86400);
@@ -452,11 +380,12 @@ function toslug($str)
 
 function upload_multiple_file($name, $folder, $i = 0)
 {
+    $image = null;
     $rand = rand(0, 99999999999999);
     $arr_type = ['jpg', 'jpeg', 'png', 'gif'];
     $destination_path = realpath($_SERVER['DOCUMENT_ROOT']);
     $path = $destination_path . '/upload/' . $folder . '/';
-    if ($_FILES[$name]['error'][$i] == 0) {
+    if (isset($_FILES[$name]['error'][$i]) && (int) $_FILES[$name]['error'][$i] === UPLOAD_ERR_OK) {
         $arr = explode('.', $_FILES[$name]['name'][$i]);
         if (in_array(strtolower(end($arr)), $arr_type)) {
             move_uploaded_file($_FILES[$name]['tmp_name'][$i], $path . md5($_FILES[$name]['name'][$i] . $rand) . '.' . end($arr));
@@ -468,11 +397,12 @@ function upload_multiple_file($name, $folder, $i = 0)
 
 function upload_file($name, $folder)
 {
+    $image = null;
     $rand = rand(0, 99999999999999);
     $arr_type = ['jpg', 'jpeg', 'png', 'gif'];
     $destination_path = realpath($_SERVER['DOCUMENT_ROOT']);
     $path = $destination_path . '/upload/' . $folder . '/';
-    if ($_FILES[$name]['error'] == 0) {
+    if (isset($_FILES[$name]) && (int) $_FILES[$name]['error'] === UPLOAD_ERR_OK) {
         $arr = explode('.', $_FILES[$name]['name']);
         if (in_array(strtolower(end($arr)), $arr_type)) {
             move_uploaded_file($_FILES[$name]['tmp_name'], $path . md5($_FILES[$name]['name'] . $rand) . '.' . end($arr));
@@ -484,18 +414,19 @@ function upload_file($name, $folder)
 
 function update_file($name, $old_link, $folder)
 {
+    $image = $old_link;
     $rand = rand(0, 99999999999999);
     $arr_type = ['jpg', 'jpeg', 'png', 'gif'];
     $destination_path = realpath($_SERVER['DOCUMENT_ROOT']);
     $path = $destination_path . '/upload/' . $folder . '/';
-    if ($_FILES[$name]['error'] == 0) {
+    if (isset($_FILES[$name]) && (int) $_FILES[$name]['error'] === UPLOAD_ERR_OK) {
         $arr = explode('.', $_FILES[$name]['name']);
         if (in_array(strtolower(end($arr)), $arr_type)) {
             move_uploaded_file($_FILES[$name]['tmp_name'], $path . md5($_FILES[$name]['name'] . $rand) . '.' . end($arr));
         }
         $image = 'upload/' . $folder . '/' . md5($_FILES[$name]['name'] . $rand) . '.' . end($arr);
     } else {
-        $image = $destination_path;
+        $image = $old_link;
     }
     return $image;
 }
@@ -702,34 +633,36 @@ function convertToDateOnly($datetime_string)
 
 function canPlay($spinQuest)
 {
-    $arr = isset($spinQuest['prizes']) ? $spinQuest['prizes'] : [];
-    $arr = json_decode($arr, true);
-    $totalPercent = 2;
-    foreach ($arr as $item) {
-        $totalPercent += isset($item['percent']) ? $item['percent'] : 0;
-    }
-    if ($totalPercent === 0) {
+    $items = json_decode($spinQuest['prizes'] ?? '[]', true);
+    if (!is_array($items)) {
         return false;
-    } else {
-        return true;
     }
+
+    $totalPercent = 0;
+    foreach ($items as $item) {
+        $totalPercent += max(0, (int) ($item['percent'] ?? 0));
+    }
+    return $totalPercent > 0;
 }
 
 function playGame($spinQuest)
 {
-    $items = isset($spinQuest['prizes']) ? $spinQuest['prizes'] : [];
-    $items = json_decode($items, true);
+    $items = json_decode($spinQuest['prizes'] ?? '[]', true);
+    if (!is_array($items)) {
+        return ['data' => null, 'location' => null];
+    }
+
     $weightedItems = [];
-    foreach ($items as $__key => $item) {
-        $index = $__key;
-        if (!($item['percent'] === 0)) {
-            $i = 2;
-            while ($i < $item['percent']) {
-                $weightedItems[] = $index;
-                ++$i;
-            }
+    foreach ($items as $index => $item) {
+        $weight = max(0, (int) ($item['percent'] ?? 0));
+        for ($i = 0; $i < $weight; ++$i) {
+            $weightedItems[] = $index;
         }
     }
+    if (!$weightedItems) {
+        return ['data' => null, 'location' => null];
+    }
+
     $randomIndex = $weightedItems[array_rand($weightedItems)] + 1;
     $location = null;
     switch ($randomIndex) {
@@ -886,20 +819,6 @@ function checkPhoneNumberLength($phone)
 function tinhKetQua($so_tien, $he_so)
 {
     return round($so_tien / 1000 * $he_so);
-}
-
-function checkLicense($purchase_code, $domain, $type = 'SHOPNICKV5')
-{
-    $curl = curl_init();
-    curl_setopt_array($curl, [CURLOPT_URL => 'https://license.sieuthicode.net/api/verify-purchase-code', CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_POSTFIELDS => ['purchase_code' => $purchase_code, 'domain' => $domain, 'type' => $type]]);
-    $response = curl_exec($curl);
-    curl_close($curl);
-    $data = json_decode($response, true);
-    if ($data && $data['status'] === 'success' && $data['status_code'] === 200) {
-        return true;
-    } else {
-        return false;
-    }
 }
 
 function checkAccessAttempts($max_attempts = 5)

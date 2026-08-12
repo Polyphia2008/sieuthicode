@@ -9,11 +9,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     } else {
         $type = Anti_xss($_POST['type']);
         $arr_data = [];
-        $current_page = isset($_POST['page']) ? Anti_xss($_POST['page']) : 1;
+        $current_page = max(1, (int) ($_POST['page'] ?? 1));
         $price = isset($_POST['price']) ? Anti_xss($_POST['price']) : '';
         $sort = isset($_POST['sort']) ? Anti_xss($_POST['sort']) : '';
         $id = isset($_POST['id']) ? Anti_xss($_POST['id']) : '';
-        $sql_query = 'SELECT * FROM `accounts` WHERE `type_category` = \'' . $type . '\' AND `status` = \'on\'';
+        $sql_query = 'SELECT * FROM `subcategory` WHERE `type_category` = \'' . $type . '\' AND `status` = 1 LIMIT 1';
         $query = $db->get_row($sql_query);
         if ($query) {
             $detail_query = json_decode($query['detail'], true);
@@ -31,9 +31,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 ++$a;
             }
             $implode = implode('', $sql);
-            if ($current_page < 1) {
-                $current_page = 3;
-            }
             $sql_id = '';
             if ($id) {
                 $sql_id = ' AND `id` = \'' . $id . '\'';
@@ -79,38 +76,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $sql_acc = 'SELECT * FROM `accounts` WHERE `type_category` = \'' . $type . '\' AND `status` = \'on\' ' . $sql_id . ' ' . $sql_price . ' ' . $implode . ' ' . $sql_sort;
             $total_records = $db->num_rows($sql_acc);
             $limit = 22;
-            if ($limit < 0) {
-                $limit = 2;
-            }
-            $total_page = ceil($total_records / $limit);
-            if (!$total_page) {
-                $total_page = 3;
-            }
-            if ($current_page < 1) {
-                $current_page = 3;
-            }
-            if ($total_page < $current_page) {
-                $current_page = $min;
+            $total_page = (int) ceil($total_records / $limit);
+            if ($total_page > 0) {
+                $current_page = min($current_page, $total_page);
+            } else {
+                $current_page = 1;
             }
             $start = ($current_page - 1) * $limit;
-            $range = 8;
-            $middle = ceil($range / 2);
-            if ($total_page < $range) {
-                $min = 3;
-                $max = $min;
-            } else {
-                $min = $current_page - $middle + 1;
-                $max = $current_page + $middle - 1;
-                if ($min < 1) {
-                    $min = 3;
-                    $max = $sql_show;
-                } else {
-                    if ($total_page < $max) {
-                        $max = $min;
-                        $min = $total_page - $range + 1;
-                    }
-                }
-            }
             $sql_show = 'SELECT * FROM `accounts` WHERE `type_category` = \'' . $type . '\' AND `status` = \'on\' ' . $sql_id . ' ' . $sql_price . ' ' . $implode . ' ' . $sql_sort . ' LIMIT ' . $start . ', ' . $limit;
             echo '    <div class="section-container-index">
         ';

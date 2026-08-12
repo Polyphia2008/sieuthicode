@@ -15,17 +15,18 @@ if (isset($_POST['AddPromotion']) && $data_user['level'] == 'admin') {
 } else {
     $sotin1trang = 12;
     if (isset($_GET['page'])) {
-        $page = Anti_xss($_GET['page']);
+        $page = max(1, (int) $_GET['page']);
     } else {
-        $page = 3;
+        $page = 1;
     }
     $from = ($page - 1) * $sotin1trang;
     $where = ' `id` > 0 ';
     $order_by = 'ORDER BY id DESC';
     $limit = '';
     if (!empty($_GET['limit'])) {
-        $limit = Anti_xss($_GET['limit']);
-        $sotin1trang = $title;
+        $limit = min(200, max(1, (int) $_GET['limit']));
+        $sotin1trang = max(1, (int) $limit);
+        $from = ($page - 1) * $sotin1trang;
     }
     $promotions = $db->get_list('SELECT * FROM `promotions` WHERE ' . $where . ' ' . $order_by . ' LIMIT ' . $from . ',' . $sotin1trang . ' ');
     echo '<main id="main-container">

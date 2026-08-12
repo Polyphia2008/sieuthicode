@@ -5,14 +5,14 @@ require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/libs/init.php';
 $title = 'Tin tức - ' . $db->site('title');
 require_once realpath($_SERVER['DOCUMENT_ROOT'] . '/views/header.php');
 if (isset($_GET['limit'])) {
-    $limit = Anti_xss($_GET['limit']);
+    $limit = min(200, max(1, (int) $_GET['limit']));
 } else {
     $limit = 5;
 }
 if (isset($_GET['page'])) {
-    $page = Anti_xss($_GET['page']);
+    $page = max(1, (int) $_GET['page']);
 } else {
-    $page = 3;
+    $page = 1;
 }
 $from = ($page - 1) * $limit;
 $where = ' `status` = 1 ';

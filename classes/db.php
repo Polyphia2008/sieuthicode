@@ -1,21 +1,50 @@
 <?php
-// statically decompiled from db.php  [structured; all 15 record(s) structured]
 
-include_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../vendor/autoload.php';
+
 date_default_timezone_set('Asia/Ho_Chi_Minh');
 
 class DB
 {
-    private $connect;
+    private $connect = null;
 
     public function connect()
     {
-        if (!$this->connect) {
-            if (!$this->connect) {
-                $this->connect = mysqli_connect('localhost', username, password, database) or exit('Error => DATABASE');
-                mysqli_query($this->connect, 'set names \'utf8mb4\'');
-            }
+        if ($this->connect instanceof mysqli) {
+            return $this->connect;
         }
+
+        if (!extension_loaded('mysqli')) {
+            http_response_code(500);
+            exit('Hosting chưa bật PHP extension mysqli. Vui lòng bật mysqli trong cPanel.');
+        }
+
+        // PHP 8.1 enables strict mysqli reporting by default. Disable exceptions
+        // here so shared hosting receives a useful deployment message instead of
+        // an uncaught mysqli_sql_exception/blank HTTP 500 page.
+        mysqli_report(MYSQLI_REPORT_OFF);
+        $this->connect = mysqli_connect(
+            DB_HOST,
+            DB_USERNAME,
+            DB_PASSWORD,
+            DB_DATABASE,
+            DB_PORT
+        );
+
+        if (!$this->connect) {
+            error_log('Database connection failed: ' . mysqli_connect_error());
+            http_response_code(500);
+            exit('Không thể kết nối cơ sở dữ liệu. Hãy kiểm tra config.php và quyền MySQL trong cPanel.');
+        }
+
+        mysqli_set_charset($this->connect, 'utf8mb4');
+        return $this->connect;
+    }
+
+    public function escape($value)
+    {
+        $this->connect();
+        return mysqli_real_escape_string($this->connect, (string) $value);
     }
 
     public function get_id_insert()
@@ -26,138 +55,135 @@ class DB
 
     public function dis_connect()
     {
-        if ($this->connect) {
+        if ($this->connect instanceof mysqli) {
             mysqli_close($this->connect);
+            $this->connect = null;
         }
     }
 
     public function query($sql)
     {
         $this->connect();
-        $row = $this->connect->query($sql);
-        return $row;
+        $result = mysqli_query($this->connect, $sql);
+        if ($result === false) {
+            $this->logQueryError($sql);
+        }
+        return $result;
     }
 
     public function insert($table, $data)
     {
         $this->connect();
-        $field_list = '';
-        $value_list = '';
-        foreach ($data as $__key => $value) {
-            $key = $__key;
-            $field_list .= ',' . $key;
-            $value_list .= ',\'' . mysqli_real_escape_string($this->connect, $value) . '\'';
+        $fields = [];
+        $values = [];
+        foreach ($data as $key => $value) {
+            $fields[] = $key;
+            $values[] = $value === null
+                ? 'NULL'
+                : "'" . mysqli_real_escape_string($this->connect, (string) $value) . "'";
         }
-        $sql = 'INSERT INTO ' . $table . '(' . trim($field_list, ',') . ') VALUES (' . trim($value_list, ',') . ')';
-        return mysqli_query($this->connect, $sql);
+
+        $sql = 'INSERT INTO ' . $table . '(' . implode(',', $fields) . ') VALUES (' . implode(',', $values) . ')';
+        return $this->query($sql);
     }
 
     public function update($table, $data, $where)
     {
         $this->connect();
-        $sql = '';
-        foreach ($data as $__key => $value) {
-            $key = $__key;
-            if ($value === null) {
-                $escapedValue = 'NULL';
-            } else {
-                $escapedValue = '\'' . mysqli_real_escape_string($this->connect, $value) . '\'';
-            }
-            $sql .= $key . ' = ' . $escapedValue . ',';
+        $assignments = [];
+        foreach ($data as $key => $value) {
+            $escapedValue = $value === null
+                ? 'NULL'
+                : "'" . mysqli_real_escape_string($this->connect, (string) $value) . "'";
+            $assignments[] = $key . ' = ' . $escapedValue;
         }
-        $sql = 'UPDATE ' . $table . ' SET ' . rtrim($sql, ',') . ' WHERE ' . $where;
-        return mysqli_query($this->connect, $sql);
+
+        $sql = 'UPDATE ' . $table . ' SET ' . implode(',', $assignments) . ' WHERE ' . $where;
+        return $this->query($sql);
     }
 
-    public function update_value($table, $data, $where, $value1)
+    public function update_value($table, $data, $where, $limit)
     {
         $this->connect();
-        $sql = '';
-        foreach ($data as $__key => $value) {
-            $key = $__key;
-            $sql .= $key . ' = \'' . mysqli_real_escape_string($this->connect, $value) . '\',';
+        $assignments = [];
+        foreach ($data as $key => $value) {
+            $assignments[] = $key . " = '" . mysqli_real_escape_string($this->connect, (string) $value) . "'";
         }
-        $sql = 'UPDATE ' . $table . ' SET ' . trim($sql, ',') . ' WHERE ' . $where . ' LIMIT ' . $value1;
-        return mysqli_query($this->connect, $sql);
+
+        $sql = 'UPDATE ' . $table . ' SET ' . implode(',', $assignments) . ' WHERE ' . $where . ' LIMIT ' . (int) $limit;
+        return $this->query($sql);
     }
 
     public function cong($table, $data, $sotien, $where)
     {
-        $this->connect();
-        $row = $this->connect->query('UPDATE `' . $table . '` SET `' . $data . '` = `' . $data . '` + \'' . $sotien . '\' WHERE ' . $where . ' ');
-        return $row;
+        return $this->query('UPDATE `' . $table . '` SET `' . $data . '` = `' . $data . '` + \'' . $sotien . '\' WHERE ' . $where);
     }
 
     public function tru($table, $data, $sotien, $where)
     {
-        $this->connect();
-        $row = $this->connect->query('UPDATE `' . $table . '` SET `' . $data . '` = `' . $data . '` - \'' . $sotien . '\' WHERE ' . $where . ' ');
-        return $row;
+        return $this->query('UPDATE `' . $table . '` SET `' . $data . '` = `' . $data . '` - \'' . $sotien . '\' WHERE ' . $where);
     }
 
-    public function site($data)
+    public function site($key)
     {
         $this->connect();
-        $row = $this->connect->query('SELECT * FROM `options` WHERE `key` = \'' . $data . '\' ')->fetch_array();
-        return $row['value'];
+        $escapedKey = mysqli_real_escape_string($this->connect, (string) $key);
+        $row = $this->get_row("SELECT `value` FROM `options` WHERE `key` = '{$escapedKey}' LIMIT 1");
+        return $row ? $row['value'] : null;
     }
 
     public function remove($table, $where)
     {
-        $this->connect();
-        $sql = 'DELETE FROM ' . $table . ' WHERE ' . $where;
-        return mysqli_query($this->connect, $sql);
+        return $this->query('DELETE FROM ' . $table . ' WHERE ' . $where);
     }
 
     public function get_list($sql)
     {
         $this->connect();
         $result = mysqli_query($this->connect, $sql);
-        if (!$result) {
-            exit('Câu truy vấn bị sai');
-        } else {
-            $return = [];
-            while (true) {
-                $row = mysqli_fetch_assoc($result);
-                if (!($row)) { break; }
-                $return[] = $row;
-            }
-            mysqli_free_result($result);
-            return $return;
+        if ($result === false) {
+            $this->logQueryError($sql);
+            return [];
         }
+
+        $rows = [];
+        while ($row = mysqli_fetch_assoc($result)) {
+            $rows[] = $row;
+        }
+        mysqli_free_result($result);
+        return $rows;
     }
 
     public function get_row($sql)
     {
         $this->connect();
         $result = mysqli_query($this->connect, $sql);
-        if (!$result) {
-            exit('Câu truy vấn bị sai');
-        } else {
-            $row = mysqli_fetch_assoc($result);
-            mysqli_free_result($result);
-            if ($row) {
-                return $row;
-            } else {
-                return false;
-            }
+        if ($result === false) {
+            $this->logQueryError($sql);
+            return false;
         }
+
+        $row = mysqli_fetch_assoc($result);
+        mysqli_free_result($result);
+        return $row ?: false;
     }
 
     public function num_rows($sql)
     {
         $this->connect();
         $result = mysqli_query($this->connect, $sql);
-        if (!$result) {
-            exit('Câu truy vấn bị sai');
-        } else {
-            $row = mysqli_num_rows($result);
-            mysqli_free_result($result);
-            if ($row) {
-                return $row;
-            } else {
-                return false;
-            }
+        if ($result === false) {
+            $this->logQueryError($sql);
+            return 0;
         }
+
+        $count = mysqli_num_rows($result);
+        mysqli_free_result($result);
+        return $count;
+    }
+
+    private function logQueryError($sql)
+    {
+        error_log('MySQL error: ' . mysqli_error($this->connect) . ' | Query: ' . $sql);
     }
 }

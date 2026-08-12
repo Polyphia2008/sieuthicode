@@ -54,7 +54,7 @@ if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] != $_SESSION['csrf_toke
                                                             exit(JsonMsg('error', 'IP của bạn đã đạt đến giới hạn tạo tài khoản cho phép'));
                                                         } else {
                                                             $realPass = sha1($password);
-                                                            $google2fa = new PragmaRX\\Google2FA\\Google2FA();
+                                                            $google2fa = new PragmaRX\Google2FA\Google2FA();
                                                             $isInsert = $db->insert('users', ['username' => $username, 'password' => $realPass, 'email' => $email, 'level' => 'member', 'device' => $_SERVER['HTTP_USER_AGENT'], 'ip' => myip(), 'ref_id' => !empty($_SESSION['ref']) ? $_SESSION['ref'] : 0, 'token' => md5(random('QWERTYUIOPASDGHJKLZXCVBNMqwertyuiopasdfghjklzxcvbnm0123456789', 6) . time()), 'SecretKey' => $google2fa->generateSecretKey(), 'create_date' => gettime()]);
                                                             echo JsonMsg('success', 'Đăng ký thành công');
                                                             $session->send($username);

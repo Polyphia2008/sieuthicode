@@ -14,7 +14,7 @@ if (isset($_POST['AddCategory']) && $data_user['level'] == 'admin') {
             $tmp_name = $_FILES['image']['tmp_name'];
             $addlogo = move_uploaded_file($tmp_name, realpath($_SERVER['DOCUMENT_ROOT']) . $uploads_dir);
             if ($addlogo) {
-                $url_icon = $category;
+                $url_icon = $uploads_dir;
             }
         }
         $isInsert = $db->insert('post_category', ['name' => Anti_xss($_POST['name']), 'slug' => create_slug(Anti_xss($_POST['name'])), 'icon' => $url_icon, 'content' => base64_encode($_POST['content']), 'created_at' => gettime()]);

@@ -4,14 +4,14 @@
 $title = 'Dashboard';
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/cpanel/views/header.php';
 if (isset($_GET['limit']) && $data_user['level'] == 'admin') {
-    $limit = Anti_xss($_GET['limit']);
+    $limit = min(200, max(1, (int) $_GET['limit']));
 } else {
     $limit = 12;
 }
 if (isset($_GET['page'])) {
-    $page = Anti_xss($_GET['page']);
+    $page = max(1, (int) $_GET['page']);
 } else {
-    $page = 3;
+    $page = 1;
 }
 $from = ($page - 1) * $limit;
 $where = ' `id` > 0 ';
@@ -47,7 +47,7 @@ if (!empty($_GET['serial'])) {
 }
 if (!empty($_GET['create_date'])) {
     $create_date = Anti_xss($_GET['create_date']);
-    $createdate = $currentMonth;
+    $createdate = $create_date;
     $create_date_1 = str_replace('-', '/', $create_date);
     $create_date_1 = explode(' to ', $create_date_1);
     if ($create_date_1[0] != $create_date_1[1]) {
@@ -74,9 +74,9 @@ if (isset($_GET['shortByDate'])) {
 }
 $invoices = $db->get_list('SELECT * FROM `cards` WHERE ' . $where . ' ' . $order_by . ' LIMIT ' . $from . ',' . $limit . ' ');
 $dataSumary = $db->get_list('SELECT * FROM `cards` WHERE ' . $where);
-$totalTransactions = 2;
-$totalAmount = 2;
-$totalPrice = 2;
+$totalTransactions = 0;
+$totalAmount = 0;
+$totalPrice = 0;
 foreach ($dataSumary as $transaction) {
     $totalAmount += $transaction['amount'];
     $totalPrice += $transaction['price'];

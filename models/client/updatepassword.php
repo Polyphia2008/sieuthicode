@@ -14,12 +14,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $new_password = Anti_xss($_POST['new-password']);
                 $confirm_password = Anti_xss($_POST['new-password-2']);
                 $Cuser = '/^[A-Za-z0-9_.]{3,32}$/';
-                if (empty($new_password) || empty($new_password) || empty($confirm_password)) {
+                if (empty($_POST['old-password']) || empty($new_password) || empty($confirm_password)) {
                     exit(JsonMsg('error', 'Vui lòng nhập đầy đủ thông tin'));
                 } else {
                     if (strlen($new_password) < 6 || strlen($confirm_password) < 6) {
                         exit(JsonMsg('error', 'Mật khẩu phải từ 6 ký tự trở lên'));
                     } else {
+                        if ($new_password !== $confirm_password) {
+                            exit(JsonMsg('error', 'Xác nhận mật khẩu mới không khớp'));
+                        }
                         if (time() - $data_user['time_session'] < 60) {
                             exit(JsonMsg('error', 'Vui lòng thử lại sau 60 giây'));
                         } else {
@@ -33,8 +36,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     if (isset($_COOKIE['remember_me'])) {
                                         $token = Anti_xss($_COOKIE['remember_me']);
                                         setcookie('remember_me', '', time() - 3600, '/', '', true, true);
-                                        $sql = 'DELETE FROM auth_tokens WHERE token = ' . $token;
-                                        $pdo->query($sql);
+                                        $sql = "DELETE FROM `auth_tokens` WHERE `token` = '" . $db->escape($token) . "'";
+                                        $db->query($sql);
                                     }
                                     exit(JsonMsg('success', 'Cập nhật thành công'));
                                 } else {

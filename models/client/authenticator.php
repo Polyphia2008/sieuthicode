@@ -1,55 +1,69 @@
 <?php
-// statically decompiled from authenticator.php  [structured; all 1 record(s) structured]
 
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/libs/init.php';
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    if ($_POST['type'] == 'ChangeGoogle2FA') {
-        if ($user) {
-            $getUser = $db->get_row(' SELECT * FROM `users` WHERE `username` = \'' . Anti_xss($data_user['username']) . '\' AND `banned` = \'0\' ');
-            if (!$getUser) {
-                exit(JsonMsg('error', 'Tài khoản này đã bị khóa bởi BQT!'));
-            } else {
-                if (empty($_POST['secret'])) {
-                    exit(JsonMsg('error', 'Vui lòng nhập mã xác minh 2FA!'));
-                } else {
-                    $google2fa = new PragmaRX\\Google2FA\\Google2FA();
-                    if (!$google2fa->verifyKey($getUser['secretkey'], Anti_xss($_POST['secret']))) {
-                        exit(JsonMsg('error', 'Mã xác minh không chính xác!'));
-                    } else {
-                        $isUpdate = $db->update('users', ['status_2fa' => $data_user['status_2fa'] == 1 ? 0 : 1], ' `id` = \'' . Anti_xss($getUser['id']) . '\' ');
-                        exit(JsonMsg('success', 'Lưu thành công'));
-                    }
-                }
-            }
-        } else {
-            exit(JsonMsg('error', 'Vui lòng đăng nhập để thực hiện'));
-        }
-    } else {
-        if ($_POST['type'] == 'VerifyGoogle2FA') {
-            if (empty($_POST['token'])) {
-                exit(JsonMsg('error', 'Vui lòng đăng nhập !'));
-            } else {
-                $token = Anti_xss($_POST['token']);
-                $getUser = $db->get_row(' SELECT * FROM `users` WHERE `token` = \'' . $token . '\' AND `banned` = \'0\' ');
-                if (!$getUser) {
-                    exit(JsonMsg('error', 'Vui lòng đăng nhập!'));
-                } else {
-                    if (empty($_POST['code'])) {
-                        exit(JsonMsg('error', 'Vui lòng nhập mã xác minh!'));
-                    } else {
-                        $google2fa = new PragmaRX\\Google2FA\\Google2FA();
-                        if (!$google2fa->verifyKey($getUser['secretkey'], Anti_xss($_POST['code']))) {
-                            insert_log($getUser['id'], '[Warning] Phát hiện có người đang cố gắng nhập mã xác minh');
-                            exit(JsonMsg('error', 'Mã xác minh không chính xác!'));
-                        } else {
-                            insert_log($getUser['id'], 'Đăng nhập vào hệ thống bằng phương thức tài khoản');
-                            $db->update('users', ['login_attempts' => 0], ' `id` = \'' . $getUser['id'] . '\' ');
-                            $session->send($getUser['username']);
-                            exit(JsonMsg('success', 'Đăng nhập thành công'));
-                        }
-                    }
-                }
-            }
-        }
-    }
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    exit(JsonMsg('error', 'Phương thức không được hỗ trợ'));
 }
+
+$type = (string) ($_POST['type'] ?? '');
+$google2fa = new PragmaRX\Google2FA\Google2FA();
+
+if ($type === 'ChangeGoogle2FA') {
+    if (!$user || !$data_user) {
+        exit(JsonMsg('error', 'Vui lòng đăng nhập để thực hiện'));
+    }
+    if (empty($_POST['csrf_token']) || empty($_SESSION['csrf_token'])
+        || !hash_equals((string) $_SESSION['csrf_token'], (string) $_POST['csrf_token'])) {
+        exit(JsonMsg('error', 'Invalid CSRF Protection Token'));
+    }
+
+    $code = trim((string) ($_POST['secret'] ?? ''));
+    if ($code === '') {
+        exit(JsonMsg('error', 'Vui lòng nhập mã xác minh 2FA!'));
+    }
+    if (!$google2fa->verifyKey((string) $data_user['secretkey'], $code)) {
+        exit(JsonMsg('error', 'Mã xác minh không chính xác!'));
+    }
+
+    $db->update('users', [
+        'status_2fa' => (int) $data_user['status_2fa'] === 1 ? 0 : 1,
+    ], "`id` = '" . (int) $data_user['id'] . "'");
+    exit(JsonMsg('success', 'Lưu thành công'));
+}
+
+if ($type === 'VerifyGoogle2FA') {
+    $token = trim((string) ($_POST['token'] ?? ''));
+    $code = trim((string) ($_POST['code'] ?? ''));
+    if ($token === '') {
+        exit(JsonMsg('error', 'Phiên đăng nhập không hợp lệ!'));
+    }
+    if ($code === '') {
+        exit(JsonMsg('error', 'Vui lòng nhập mã xác minh!'));
+    }
+
+    $getUser = $db->get_row(
+        "SELECT * FROM `users` WHERE `token` = '" . $db->escape($token) . "' AND `banned` = 0 LIMIT 1"
+    );
+    if (!$getUser) {
+        exit(JsonMsg('error', 'Phiên đăng nhập không hợp lệ!'));
+    }
+    if (!$google2fa->verifyKey((string) $getUser['secretkey'], $code)) {
+        insert_log($getUser['id'], '[Warning] Có người nhập sai mã xác minh 2FA');
+        exit(JsonMsg('error', 'Mã xác minh không chính xác!'));
+    }
+
+    insert_log($getUser['id'], 'Đăng nhập vào hệ thống bằng phương thức tài khoản và 2FA');
+    $db->update('users', [
+        'login_attempts' => 0,
+        'ip' => myip(),
+        'device' => $_SERVER['HTTP_USER_AGENT'] ?? '',
+        'time_session' => time(),
+    ], "`id` = '" . (int) $getUser['id'] . "'");
+    $session->send($getUser['username']);
+    exit(JsonMsg('success', 'Đăng nhập thành công'));
+}
+
+http_response_code(400);
+exit(JsonMsg('error', 'Yêu cầu không hợp lệ'));

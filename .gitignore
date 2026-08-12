@@ -1,0 +1,15 @@
+# Local deployment configuration and runtime secrets
+.env
+config.local.php
+security/*.pem
+security/.keygen.lock
+
+# Runtime logs/caches
+*.log
+update.txt
+
+# IDE/OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

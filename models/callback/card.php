@@ -30,7 +30,7 @@ if ($db->site('card_status') != 1) {
                 } else {
                     if ($status == 1) {
                         if ($db->site('card_ck') == 0) {
-                            $price = $serial;
+                            $price = $declared_value;
                         } else {
                             $price = $declared_value - $declared_value * $db->site('card_ck') / 100;
                         }

@@ -8,9 +8,9 @@ if ($data_user['ctv'] != 1 && $data_user['ctv_boosting'] != 1) {
 }
 $sotin1trang = 12;
 if (isset($_GET['page'])) {
-    $page = Anti_xss($_GET['page']);
+    $page = max(1, (int) $_GET['page']);
 } else {
-    $page = 3;
+    $page = 1;
 }
 $from = ($page - 1) * $sotin1trang;
 $where = ' `id` > 0 AND `status` = "pending" AND `receiver` IS NULL';
@@ -25,8 +25,9 @@ if (!empty($_GET['group'])) {
     $where .= ' AND `name_sub` LIKE "%' . $group . '%" ';
 }
 if (!empty($_GET['limit'])) {
-    $limit = Anti_xss($_GET['limit']);
-    $sotin1trang = $createdate;
+    $limit = min(200, max(1, (int) $_GET['limit']));
+    $sotin1trang = max(1, (int) $limit);
+        $from = ($page - 1) * $sotin1trang;
 }
 if (!empty($_GET['trans_id'])) {
     $trans_id = Anti_xss($_GET['trans_id']);
@@ -39,7 +40,7 @@ if (!empty($_GET['service'])) {
 $createdate = '';
 if (!empty($_GET['createdate'])) {
     $createdate = Anti_xss($_GET['createdate']);
-    $create_date_1 = $row;
+    $create_date_1 = $createdate;
     $create_date_1 = explode(' to ', $create_date_1);
     if ($create_date_1[0] != $create_date_1[1]) {
         $create_date_1 = [$create_date_1[0] . ' 00:00:00', $create_date_1[1] . ' 23:59:59'];

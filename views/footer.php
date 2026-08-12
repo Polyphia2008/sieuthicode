@@ -173,6 +173,14 @@ echo '"
                             <div class="form-reg-email">
                                 <div class="group-input input-text">
                                     <div class="input-element">
+                                        <input class="input-text" name="email-register" type="email"
+                                            id="email-register-modals" max="100" placeholder="Nhập email"
+                                            required>
+                                        <max class="count-input"></max>
+                                    </div>
+                                </div>
+                                <div class="group-input input-text">
+                                    <div class="input-element">
                                         <input class="input-text" name="username-register" type="text"
                                             id="username-register-modals" max="25" placeholder="Nhập tài khoản"
                                             required>
@@ -425,7 +433,7 @@ echo '\';
 <script src="/assets/js/hc-canvas-luckwheel.js"></script>
 
 <script type="text/javascript" src="/assets/js/cached.js?v=';
-echo time();
+echo (string) (@filemtime(APP_ROOT . '/assets/js/cached.js') ?: 1);
 echo '"></script>
 <script src="/assets/js/swiper-slider-conf.js"></script>
 <script src="/assets/js/custom.js"></script>

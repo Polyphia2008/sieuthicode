@@ -1,16 +1,27 @@
 <?php
 // statically decompiled from header.php  [structured; all 1 record(s) structured]
 
-$rateLimitWindow = 12;
-$maxRequests = 12;
+$rateLimitWindow = 10;
+$maxRequests = 60;
 $userIP = myip();
 $currentTime = time();
-if (!isset($_SESSION['rate_limit'])) {
-    $_SESSION['rate_limit'] = [];
-}
-if (!isset($_SESSION['rate_limit'][$userIP])) {
+
+if (!isset($_SESSION['rate_limit'][$userIP])
+    || $currentTime - (int) $_SESSION['rate_limit'][$userIP]['start_time'] >= $rateLimitWindow) {
     $_SESSION['rate_limit'][$userIP] = ['start_time' => $currentTime, 'request_count' => 1];
-    echo '<!DOCTYPE html>
+} else {
+    ++$_SESSION['rate_limit'][$userIP]['request_count'];
+}
+
+if ($_SESSION['rate_limit'][$userIP]['request_count'] > $maxRequests) {
+    http_response_code(429);
+    exit('Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau.');
+}
+
+$cachedCssVersion = (string) (@filemtime(APP_ROOT . '/assets/css/cached.css') ?: 1);
+$stylesCssVersion = (string) (@filemtime(APP_ROOT . '/assets/css/styles.css') ?: 1);
+
+echo '<!DOCTYPE html>
 <html lang="vi">
 
 <head>
@@ -119,10 +130,10 @@ if (!isset($_SESSION['rate_limit'][$userIP])) {
         }
     </style>
     <link href="/assets/css/cached.css?v=';
-    echo time();
+    echo $cachedCssVersion;
     echo '" rel="stylesheet">
     <link href="/assets/css/styles.css?v=';
-    echo time();
+    echo $stylesCssVersion;
     echo '" rel="stylesheet">
     <script src="/assets/js/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lazysizes/5.3.2/lazysizes.min.js" async></script>
@@ -619,17 +630,3 @@ if (!isset($_SESSION['rate_limit'][$userIP])) {
                 </div>
             </div>
         </div>';
-} else {
-    $userData = &$_SESSION['rate_limit'][$userIP];
-    if ($rateLimitWindow < $currentTime - $userData['start_time']) {
-        $userData['start_time'] = $currentTime;
-        $userData['request_count'] = 1;
-    } else {
-        ++$userData['request_count'];
-    }
-    if ($maxRequests < $userData['request_count']) {
-        header('HTTP/1.1 429 Too Many Requests');
-        checkAccessAttempts(30);
-        exit('Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau.');
-    }
-}

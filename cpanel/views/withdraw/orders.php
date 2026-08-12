@@ -5,9 +5,9 @@ $title = 'Dashboard';
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/cpanel/views/header.php';
 $sotin1trang = 12;
 if (isset($_GET['page']) && $data_user['level'] == 'admin') {
-    $page = Anti_xss($_GET['page']);
+    $page = max(1, (int) $_GET['page']);
 } else {
-    $page = 3;
+    $page = 1;
 }
 $from = ($page - 1) * $sotin1trang;
 $where = ' `id` > 0 ';
@@ -30,8 +30,8 @@ if (!empty($_GET['bank'])) {
 }
 if (!empty($_GET['create_date'])) {
     $create_date = Anti_xss($_GET['create_date']);
-    $create_date_1 = $dataUser;
-    $create_date_1 = explode(' - ', $create_date_1);
+    $create_date_1 = $create_date;
+    $create_date_1 = explode(' to ', $create_date_1);
     if ($create_date_1[0] != $create_date_1[1]) {
         $create_date_1 = [$create_date_1[0] . ' 00:00:00', $create_date_1[1] . ' 23:59:59'];
         $where .= ' AND `create_gettime` >= \'' . $create_date_1[0] . '\' AND `create_gettime` <= \'' . $create_date_1[1] . '\' ';
@@ -39,11 +39,11 @@ if (!empty($_GET['create_date'])) {
 }
 $listOrder = $db->get_list(' SELECT * FROM `withdraw_ctv` WHERE ' . $where . ' ORDER BY id DESC LIMIT ' . $from . ',' . $sotin1trang . ' ');
 $dataSumary = $db->get_list('SELECT * FROM `withdraw_ctv` WHERE ' . $where);
-$totalTransactions = 2;
-$totalAmount = 2;
-$status0Transactions = 2;
-$status2Transactions = 2;
-$status3Transactions = 2;
+$totalTransactions = 0;
+$totalAmount = 0;
+$status0Transactions = 0;
+$status2Transactions = 0;
+$status3Transactions = 0;
 foreach ($dataSumary as $transaction) {
     $totalAmount += $transaction['amount'];
     ++$totalTransactions;

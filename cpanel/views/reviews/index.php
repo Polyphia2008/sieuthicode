@@ -14,7 +14,7 @@ if (isset($_POST['AddTag']) && $data_user['level'] == 'admin') {
             $tmp_name = $_FILES['image']['tmp_name'];
             $addlogo = move_uploaded_file($tmp_name, realpath($_SERVER['DOCUMENT_ROOT']) . $uploads_dir);
             if ($addlogo) {
-                $url_icon = $row;
+                $url_icon = $uploads_dir;
             }
         }
         $isInsert = $db->insert('tag', ['name' => Anti_xss($_POST['name']), 'images' => $url_icon, 'create_date' => gettime()]);

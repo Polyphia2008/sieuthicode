@@ -14,7 +14,7 @@ if (isset($_POST['AddBlog']) && $data_user['level'] == 'admin') {
             $tmp_name = $_FILES['image']['tmp_name'];
             $addlogo = move_uploaded_file($tmp_name, realpath($_SERVER['DOCUMENT_ROOT']) . $uploads_dir);
             if ($addlogo) {
-                $url_icon = $category;
+                $url_icon = $uploads_dir;
             }
         }
         $isInsert = $db->insert('posts', ['user_id' => $data_user['id'], 'image' => $url_icon, 'title' => Anti_xss($_POST['title']), 'slug' => create_slug(Anti_xss($_POST['title'])), 'noti' => Anti_xss($_POST['noti']), 'link' => Anti_xss($_POST['link']), 'category_id' => Anti_xss($_POST['category_id']), 'content' => isset($_POST['content']) ? base64_encode($_POST['content']) : null, 'status' => Anti_xss($_POST['status']), 'footer' => Anti_xss($_POST['footer']), 'created_at' => gettime()]);

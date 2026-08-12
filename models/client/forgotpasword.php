@@ -31,7 +31,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 $body .= '<p>Mật khẩu mới là: ' . $token . '</p><br>';
                                 $body .= '<p>Nếu không phải là bạn, vui lòng liên hệ ngay với Quản trị viên của bạn để được hỗ trợ về bảo mật.</p>';
                                 $chu_de = 'Khôi phục lại mật khẩu - ' . $db->site('title');
-                                $content = file_get_contents(DOMAIN . '/libs/mails/notification', false, stream_context_create($arrContextOptions));
+                                ob_start();
+                                require APP_ROOT . '/libs/mails/notification.php';
+                                $content = ob_get_clean();
                                 $content = str_replace('{title}', 'Xác nhận khôi phục mật khẩu', $content);
                                 $content = str_replace('{content}', $body, $content);
                                 $bcc = $db->site('title');

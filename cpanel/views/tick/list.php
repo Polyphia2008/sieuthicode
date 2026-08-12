@@ -14,7 +14,7 @@ if (isset($_POST['AddTick']) && $data_user['level'] == 'admin') {
             $tmp_name = $_FILES['image']['tmp_name'];
             $addlogo = move_uploaded_file($tmp_name, realpath($_SERVER['DOCUMENT_ROOT']) . $uploads_dir);
             if ($addlogo) {
-                $url_icon = $tag;
+                $url_icon = $uploads_dir;
             }
         }
         $isInsert = $db->insert('tick', ['name' => Anti_xss($_POST['name']), 'icon' => $url_icon, 'created_at' => gettime()]);

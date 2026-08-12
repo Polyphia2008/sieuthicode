@@ -20,7 +20,6 @@ echo '</a>
 <script src="/assets/back-end/js/plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js"></script>
 <script src="/assets/back-end/js/plugins/select2/js/select2.full.min.js"></script>
 <script src="/assets/back-end/js/plugins/flatpickr/flatpickr.min.js"></script>
-<script src="/assets/js/plugins/magnific-popup/jquery.magnific-popup.min.js"></script>
 <script src="/assets/back-end/js/simple-notify.min.js"></script>
 <script src="/assets/back-end/js/chart.js/chart.min.js"></script>
 <script>Dashmix.helpersOnLoad([\'js-flatpickr\', \'jq-datepicker\', \'jq-maxlength\', \'jq-select2\', \'jq-rangeslider\', \'jq-masked-inputs\', \'jq-pw-strength\']);</script>

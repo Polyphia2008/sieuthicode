@@ -16,9 +16,9 @@ $title = $detail_query['name_product'] . ' | ' . $db->site('title');
 require_once realpath($_SERVER['DOCUMENT_ROOT'] . '/views/header.php');
 $sotin1trang = 32;
 if (isset($_GET['page'])) {
-    $page = Anti_xss($_GET['page']);
+    $page = max(1, (int) $_GET['page']);
 } else {
-    $page = 3;
+    $page = 1;
 }
 $from = ($page - 1) * $sotin1trang;
 $where = ' `id` > 0 AND `sub_id` = "' . $row['id'] . '"';

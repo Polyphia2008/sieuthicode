@@ -27,7 +27,7 @@ if (isset($_POST['AddCategory']) && $data_user['level'] == 'admin') {
                 $tmp_name = $_FILES['thumb']['tmp_name'];
                 $addlogo = move_uploaded_file($tmp_name, realpath($_SERVER['DOCUMENT_ROOT']) . $uploads_dir);
                 if ($addlogo) {
-                    $url_icon = $package;
+                    $url_icon = $uploads_dir;
                 }
             }
             $isInsert = $db->insert('package_boostings', ['sub_id' => $id, 'stt' => Anti_xss($_POST['stt']), 'name' => Anti_xss($_POST['name']), 'image' => $url_icon, 'price' => Anti_xss($_POST['price']), 'status' => Anti_xss($_POST['status']), 'thele' => base64_encode($_POST['thele']), 'created_at' => gettime()]);

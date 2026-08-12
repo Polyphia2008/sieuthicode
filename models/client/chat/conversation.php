@@ -1,8 +1,9 @@
 <?php
 /**
  * GET /model/chat/conversation
- * Trả thông tin hội thoại hỗ trợ của thành viên đang đăng nhập
- * (tạo mới nếu chưa có) kèm unread count để cập nhật badge header.
+ * Trả thông tin hội thoại hỗ trợ của thành viên đang đăng nhập kèm unread
+ * count để cập nhật badge header. Endpoint này CHỈ ĐỌC — không tạo
+ * conversation rỗng (tránh sinh hàng loạt hội thoại trống khi user lướt trang).
  */
 
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/libs/init.php';
@@ -13,7 +14,14 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 }
 
 $account = chat_require_login();
-$conversation = chat_get_or_create_conversation($account['id']);
+$conversation = chat_get_conversation_by_user($account['id']);
+
+if (!$conversation) {
+    chat_json('success', 'OK', [
+        'conversation' => null,
+        'unread' => 0,
+    ]);
+}
 
 chat_json('success', 'OK', [
     'conversation' => [
@@ -22,4 +30,5 @@ chat_json('success', 'OK', [
         'last_message_at' => $conversation['last_message_at'],
         'unread' => (int) $conversation['unread_user'],
     ],
+    'unread' => (int) $conversation['unread_user'],
 ]);

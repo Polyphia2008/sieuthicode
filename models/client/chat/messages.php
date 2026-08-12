@@ -5,6 +5,7 @@
  *  - Không truyền after_id: trả tối đa 100 tin mới nhất (thứ tự tăng dần).
  *  - Có after_id: chỉ trả tin có id > after_id (tối đa 200).
  * GET thuần tuý: không thay đổi dữ liệu (đánh dấu đã đọc dùng /model/chat/read).
+ * CHỈ ĐỌC: không có conversation → trả messages=[] (không tạo conversation rỗng).
  */
 
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/libs/init.php';
@@ -15,9 +16,16 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 }
 
 $account = chat_require_login();
-$conversation = chat_get_or_create_conversation($account['id']);
-$conversationId = (int) $conversation['id'];
+$conversation = chat_get_conversation_by_user($account['id']);
 
+if (!$conversation) {
+    chat_json('success', 'OK', [
+        'messages' => [],
+        'conversation' => null,
+    ]);
+}
+
+$conversationId = (int) $conversation['id'];
 $afterId = isset($_GET['after_id']) ? (int) $_GET['after_id'] : 0;
 $messages = [];
 

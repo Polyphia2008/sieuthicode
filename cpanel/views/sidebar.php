@@ -35,6 +35,12 @@ echo '<nav id="sidebar" aria-label="Main Navigation">
                         <span class="nav-main-link-name">Bảo mật</span>
                     </a>
                 </li>
+                <li class="nav-main-item">
+                    <a class="nav-main-link" href="/cpanel/chat-box">
+                        <i class="nav-main-link-icon far fa-comment-dots"></i>
+                        <span class="nav-main-link-name">Chat hỗ trợ <span class="badge bg-danger rounded-pill" id="sidebar-chat-unread" style="display:none">0</span></span>
+                    </a>
+                </li>
                 <li class="nav-main-heading">QUẢN LÝ GAME</li>
               
                 <li class="nav-main-item">

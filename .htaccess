@@ -43,6 +43,14 @@ RewriteRule ^model/chat/messages/?$ models/client/chat/messages.php [L,QSA,NC]
 RewriteRule ^model/chat/send/?$ models/client/chat/send.php [L,QSA,NC]
 RewriteRule ^model/chat/read/?$ models/client/chat/read.php [L,QSA,NC]
 RewriteRule ^model/chat/reopen/?$ models/client/chat/reopen.php [L,QSA,NC]
+RewriteRule ^model/chat/attachment/?$ models/client/chat/attachment.php [L,QSA,NC]
+
+# Chat support (admin) endpoints.
+RewriteRule ^model/admin/chat/conversations/?$ models/admin/chat/conversations.php [L,QSA,NC]
+RewriteRule ^model/admin/chat/messages/?$ models/admin/chat/messages.php [L,QSA,NC]
+RewriteRule ^model/admin/chat/send/?$ models/admin/chat/send.php [L,QSA,NC]
+RewriteRule ^model/admin/chat/read/?$ models/admin/chat/read.php [L,QSA,NC]
+RewriteRule ^model/admin/chat/status/?$ models/admin/chat/status.php [L,QSA,NC]
 RewriteRule ^model/withdraw/minigame/?$ models/client/withdraw-minigame.php [L,QSA,NC]
 RewriteRule ^api/deposit/card/?$ models/callback/card.php [L,QSA,NC]
 
@@ -175,6 +183,7 @@ RewriteRule ^cpanel/coupon/edit/([^/]+)/?$ cpanel/views/recharge/edit-coupon.php
 RewriteRule ^cpanel/promotions/?$ cpanel/views/recharge/promotions.php [L,QSA,NC]
 RewriteRule ^cpanel/reviews/?$ cpanel/views/reviews/index.php [L,QSA,NC]
 RewriteRule ^cpanel/security/?$ cpanel/views/security/index.php [L,QSA,NC]
+RewriteRule ^cpanel/chat-box/?$ cpanel/views/chat/index.php [L,QSA,NC]
 RewriteRule ^cpanel/spin/?$ cpanel/views/spin/index.php [L,QSA,NC]
 RewriteRule ^cpanel/spin/update/([^/]+)/?$ cpanel/views/spin/update.php?id=$1 [L,QSA,NC]
 RewriteRule ^cpanel/minigame/withdraws/?$ cpanel/views/spin/withdraws.php [L,QSA,NC]

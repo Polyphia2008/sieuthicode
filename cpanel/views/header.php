@@ -92,6 +92,26 @@ if (!$user || $data_user['level'] != 'admin') {
     echo generate_csrf_token();
     echo '"
     </script>
+    <script>
+    (function () {
+        "use strict";
+        function refreshChatBadge() {
+            var badge = document.getElementById("sidebar-chat-unread");
+            if (!badge) { return; }
+            fetch("/model/admin/chat/conversations?page=1", { credentials: "same-origin", headers: { "X-Requested-With": "XMLHttpRequest" } })
+                .then(function (res) { return res.json(); })
+                .then(function (json) {
+                    if (json.status !== "success" || !json.data) { return; }
+                    var total = parseInt(json.data.total_unread, 10) || 0;
+                    badge.textContent = total > 99 ? "99+" : String(total);
+                    badge.style.display = total > 0 ? "" : "none";
+                })
+                .catch(function () {});
+        }
+        refreshChatBadge();
+        setInterval(refreshChatBadge, 10000);
+    })();
+    </script>
 </head>
 <script>
     function showMessage(message, type) {

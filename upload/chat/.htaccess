@@ -1,12 +1,4 @@
-# Chặn thực thi script trong thư mục upload chat (chỉ cho phép ảnh tĩnh).
-<IfModule mod_rewrite.c>
-RewriteEngine On
-RewriteCond %{REQUEST_URI} \.(php[0-9]?|phtml|phar|cgi|pl|asp|aspx|jsp|sh)$ [NC]
-RewriteRule ^ - [F,L]
-</IfModule>
-<FilesMatch "\.(php[0-9]?|phtml|phar|cgi|pl|asp|aspx|jsp|sh)$">
-    Require all denied
-</FilesMatch>
-RemoveHandler .php .phtml .phar .php3 .php4 .php5 .php7 .php8
-RemoveType .php .phtml .phar
-php_flag engine off
+# Chặn toàn bộ truy cập HTTP trực tiếp vào ảnh chat.
+# Ảnh chỉ được stream qua /model/chat/attachment sau khi kiểm tra quyền.
+# Không dùng "php_flag engine off" (gây HTTP 500 trên PHP-FPM/FastCGI).
+Require all denied

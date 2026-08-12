@@ -68,14 +68,27 @@ function chat_require_csrf()
 }
 
 /**
+ * Chỉ đọc hội thoại của một thành viên — KHÔNG tạo mới.
+ * Dùng cho các endpoint GET/polling để tránh tạo conversation rỗng.
+ */
+function chat_get_conversation_by_user($userId)
+{
+    global $db;
+    $userId = (int) $userId;
+    return $db->get_row('SELECT * FROM `chat_conversations` WHERE `user_id` = ' . $userId . ' LIMIT 1');
+}
+
+/**
  * Lấy (hoặc tạo mới) hội thoại của một thành viên.
  * Một thành viên chỉ có 1 hội thoại hỗ trợ (UNIQUE user_id).
+ * Chịu được race condition: nếu 2 request tạo đồng thời, request thua sẽ
+ * bắt duplicate key rồi đọc lại conversation hiện có thay vì trả 500.
  */
 function chat_get_or_create_conversation($userId)
 {
     global $db;
     $userId = (int) $userId;
-    $conversation = $db->get_row('SELECT * FROM `chat_conversations` WHERE `user_id` = ' . $userId . ' LIMIT 1');
+    $conversation = chat_get_conversation_by_user($userId);
     if ($conversation) {
         return $conversation;
     }
@@ -85,7 +98,7 @@ function chat_get_or_create_conversation($userId)
         'created_at' => date('Y-m-d H:i:s'),
         'updated_at' => date('Y-m-d H:i:s'),
     ]);
-    $conversation = $db->get_row('SELECT * FROM `chat_conversations` WHERE `user_id` = ' . $userId . ' LIMIT 1');
+    $conversation = chat_get_conversation_by_user($userId);
     if (!$conversation) {
         chat_json('error', 'Không thể khởi tạo hội thoại, vui lòng thử lại', null, 500);
     }
@@ -159,6 +172,8 @@ function chat_validate_message($raw, $hasAttachment)
  * Upload ảnh đính kèm cho chat: kiểm tra extension strict, is_uploaded_file,
  * finfo + getimagesize, MIME whitelist, tên file ngẫu nhiên.
  * Trả về ['path' => 'upload/chat/xxx.png', 'type' => 'image'] hoặc null nếu không có file.
+ * Lưu ý: path này KHÔNG được expose public — client chỉ nhận URL qua
+ * endpoint bảo vệ /model/chat/attachment?message_id=...
  */
 function chat_handle_attachment($field)
 {
@@ -270,12 +285,14 @@ function chat_insert_message($conversation, $senderId, $senderRole, $message, $a
  */
 function chat_format_message($row)
 {
+    $hasAttachment = !empty($row['attachment']);
     return [
         'id' => (int) $row['id'],
         'conversation_id' => (int) $row['conversation_id'],
         'sender_role' => $row['sender_role'],
         'message' => (string) ($row['message'] ?? ''),
-        'attachment' => $row['attachment'] ? '/' . ltrim((string) $row['attachment'], '/') : null,
+        // Không trả filesystem path — client tải qua endpoint bảo vệ theo message_id.
+        'attachment' => $hasAttachment ? '/model/chat/attachment?message_id=' . (int) $row['id'] : null,
         'attachment_type' => $row['attachment_type'],
         'created_at' => $row['created_at'],
         'time_label' => date('H:i', strtotime((string) $row['created_at'])),

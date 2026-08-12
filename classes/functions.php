@@ -386,11 +386,24 @@ function upload_multiple_file($name, $folder, $i = 0)
     $destination_path = realpath($_SERVER['DOCUMENT_ROOT']);
     $path = $destination_path . '/upload/' . $folder . '/';
     if (isset($_FILES[$name]['error'][$i]) && (int) $_FILES[$name]['error'][$i] === UPLOAD_ERR_OK) {
-        $arr = explode('.', $_FILES[$name]['name'][$i]);
-        if (in_array(strtolower(end($arr)), $arr_type)) {
-            move_uploaded_file($_FILES[$name]['tmp_name'][$i], $path . md5($_FILES[$name]['name'][$i] . $rand) . '.' . end($arr));
+        $arr = explode('.', (string) $_FILES[$name]['name'][$i]);
+        $ext = strtolower(end($arr));
+        $tmp = $_FILES[$name]['tmp_name'][$i];
+        if (!in_array($ext, $arr_type, true)) {
+            return null;
         }
-        $image = 'upload/' . $folder . '/' . md5($_FILES[$name]['name'][$i] . $rand) . '.' . end($arr);
+        if (!is_uploaded_file($tmp)) {
+            return null;
+        }
+        $imageInfo = @getimagesize($tmp);
+        if ($imageInfo === false) {
+            return null;
+        }
+        $file_name = md5($_FILES[$name]['name'][$i] . $rand) . '.' . $ext;
+        if (!move_uploaded_file($tmp, $path . $file_name)) {
+            return null;
+        }
+        $image = 'upload/' . $folder . '/' . $file_name;
     }
     return $image;
 }
@@ -403,11 +416,24 @@ function upload_file($name, $folder)
     $destination_path = realpath($_SERVER['DOCUMENT_ROOT']);
     $path = $destination_path . '/upload/' . $folder . '/';
     if (isset($_FILES[$name]) && (int) $_FILES[$name]['error'] === UPLOAD_ERR_OK) {
-        $arr = explode('.', $_FILES[$name]['name']);
-        if (in_array(strtolower(end($arr)), $arr_type)) {
-            move_uploaded_file($_FILES[$name]['tmp_name'], $path . md5($_FILES[$name]['name'] . $rand) . '.' . end($arr));
+        $arr = explode('.', (string) $_FILES[$name]['name']);
+        $ext = strtolower(end($arr));
+        $tmp = $_FILES[$name]['tmp_name'];
+        if (!in_array($ext, $arr_type, true)) {
+            return null;
         }
-        $image = 'upload/' . $folder . '/' . md5($_FILES[$name]['name'] . $rand) . '.' . end($arr);
+        if (!is_uploaded_file($tmp)) {
+            return null;
+        }
+        $imageInfo = @getimagesize($tmp);
+        if ($imageInfo === false) {
+            return null;
+        }
+        $file_name = md5($_FILES[$name]['name'] . $rand) . '.' . $ext;
+        if (!move_uploaded_file($tmp, $path . $file_name)) {
+            return null;
+        }
+        $image = 'upload/' . $folder . '/' . $file_name;
     }
     return $image;
 }
@@ -420,11 +446,24 @@ function update_file($name, $old_link, $folder)
     $destination_path = realpath($_SERVER['DOCUMENT_ROOT']);
     $path = $destination_path . '/upload/' . $folder . '/';
     if (isset($_FILES[$name]) && (int) $_FILES[$name]['error'] === UPLOAD_ERR_OK) {
-        $arr = explode('.', $_FILES[$name]['name']);
-        if (in_array(strtolower(end($arr)), $arr_type)) {
-            move_uploaded_file($_FILES[$name]['tmp_name'], $path . md5($_FILES[$name]['name'] . $rand) . '.' . end($arr));
+        $arr = explode('.', (string) $_FILES[$name]['name']);
+        $ext = strtolower(end($arr));
+        $tmp = $_FILES[$name]['tmp_name'];
+        if (!in_array($ext, $arr_type, true)) {
+            return $old_link;
         }
-        $image = 'upload/' . $folder . '/' . md5($_FILES[$name]['name'] . $rand) . '.' . end($arr);
+        if (!is_uploaded_file($tmp)) {
+            return $old_link;
+        }
+        $imageInfo = @getimagesize($tmp);
+        if ($imageInfo === false) {
+            return $old_link;
+        }
+        $file_name = md5($_FILES[$name]['name'] . $rand) . '.' . $ext;
+        if (!move_uploaded_file($tmp, $path . $file_name)) {
+            return $old_link;
+        }
+        $image = 'upload/' . $folder . '/' . $file_name;
     } else {
         $image = $old_link;
     }

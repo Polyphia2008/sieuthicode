@@ -59636,6 +59636,11 @@ SIEUTHICODE.customjs = function () {
 			type: "GET",
 			dataType: "json",
 			success: function (response) {
+				if (!Array.isArray(response) || response.length === 0) {
+					$("#bank-options").html('<p class="text-muted">Chưa cấu hình tài khoản ngân hàng.</p>');
+					return;
+				}
+
 				let bankOptions = "";
 				response.forEach((bank, index) => {
 					bankOptions += `
@@ -59650,13 +59655,16 @@ SIEUTHICODE.customjs = function () {
 				$("#bank-options").html(bankOptions);
 				updateBankInfo(response[0]);
 				$("input[name='nganhang']").change(function () {
-					let selectedBank = response.find(bank => bank.id === $(this).val());
+					let selectedBank = response.find(bank => String(bank.id) === String($(this).val()));
 					updateBankInfo(selectedBank);
 				});
 			}
 		});
 
 		function updateBankInfo(bank) {
+			if (!bank) {
+				return;
+			}
 			$("#account-number").text(bank.account_number);
 			$("#account-name").text(bank.account_name);
 			$("#bank-name").text(bank.bank_name);

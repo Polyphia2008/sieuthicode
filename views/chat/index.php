@@ -6,6 +6,7 @@
  */
 
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/libs/init.php';
+require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/libs/chat.php';
 
 if (!$user) {
     new Redirect('/login');

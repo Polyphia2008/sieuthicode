@@ -7,6 +7,7 @@
 $title = 'Chat hỗ trợ';
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/cpanel/views/header.php';
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/cpanel/views/sidebar.php';
+require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/libs/chat.php';
 
 $adminChatCssVersion = (string) (@filemtime(APP_ROOT . '/assets/css/admin-chat-box.css') ?: 1);
 $adminChatJsVersion = (string) (@filemtime(APP_ROOT . '/assets/js/admin-chat-box.js') ?: 1);

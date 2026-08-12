@@ -108,8 +108,10 @@ if (!$user || $data_user['level'] != 'admin') {
                 })
                 .catch(function () {});
         }
-        refreshChatBadge();
-        setInterval(refreshChatBadge, 10000);
+        document.addEventListener("DOMContentLoaded", function () {
+            refreshChatBadge();
+            setInterval(refreshChatBadge, 10000);
+        });
     })();
     </script>
 </head>

@@ -1,0 +1,2 @@
+# Chặn mọi truy cập HTTP trực tiếp vào thư mục database (migration SQL).
+Require all denied

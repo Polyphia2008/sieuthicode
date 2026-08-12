@@ -36,6 +36,13 @@ RewriteRule ^model/spin-quest/?$ models/client/spin-quest.php [L,QSA,NC]
 RewriteRule ^model/update/info/?$ models/client/updateinfo.php [L,QSA,NC]
 RewriteRule ^model/update/password/?$ models/client/updatepassword.php [L,QSA,NC]
 RewriteRule ^model/withdraw/?$ models/client/withdraw.php [L,QSA,NC]
+
+# Chat support (member) endpoints.
+RewriteRule ^model/chat/conversation/?$ models/client/chat/conversation.php [L,QSA,NC]
+RewriteRule ^model/chat/messages/?$ models/client/chat/messages.php [L,QSA,NC]
+RewriteRule ^model/chat/send/?$ models/client/chat/send.php [L,QSA,NC]
+RewriteRule ^model/chat/read/?$ models/client/chat/read.php [L,QSA,NC]
+RewriteRule ^model/chat/reopen/?$ models/client/chat/reopen.php [L,QSA,NC]
 RewriteRule ^model/withdraw/minigame/?$ models/client/withdraw-minigame.php [L,QSA,NC]
 RewriteRule ^api/deposit/card/?$ models/callback/card.php [L,QSA,NC]
 

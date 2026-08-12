@@ -61405,8 +61405,11 @@ SIEUTHICODE.componentInput = function () {
 			$(this).toggleClass('hide');
 		});
 		$('input.input-text').each(function () {
-			const inputValue = $(this).val();
 			const maxLength = $(this).attr('max');
+			if (this.type === 'hidden' || maxLength === undefined) {
+				return;
+			}
+			const inputValue = $(this).val();
 			const countInput = $(this).closest('.input-element').find('.count-input');
 			countInput.text(`${inputValue.length}/${maxLength}`);
 		});
@@ -61417,9 +61420,12 @@ SIEUTHICODE.componentInput = function () {
 			}
 		});
 		$("input.input-text").on("input", function () {
-			const inputValue = $(this).val();
 			const maxLength = $(this).attr('max');
-			if (inputValue.length > maxLength) {
+			if (this.type === 'hidden' || maxLength === undefined) {
+				return;
+			}
+			const inputValue = $(this).val();
+			if (inputValue.length > Number(maxLength)) {
 				const truncatedValue = inputValue.slice(0, maxLength);
 				$(this).val(truncatedValue);
 				return;

@@ -29,7 +29,7 @@ if (!$user || $data_user['level'] != 'admin') {
 
 <script src="/assets/back-end/js/simple-notify.min.js"></script>
 <script src="/assets/back-end/js/chart.js/chart.min.js"></script>
-<script>Dashmix.helpersOnLoad([\'js-flatpickr\', \'jq-datepicker\', \'jq-maxlength\', \'jq-select2\', \'jq-rangeslider\', \'jq-masked-inputs\', \'jq-pw-strength\']);</script>
+<script>Dashmix.helpersOnLoad([\'js-flatpickr\', \'jq-datepicker\', \'jq-maxlength\', \'jq-select2\', \'jq-rangeslider\', \'jq-pw-strength\']);</script>
 </body>
 
 </html>';

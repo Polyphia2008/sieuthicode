@@ -13,3 +13,9 @@ update.txt
 Thumbs.db
 .idea/
 .vscode/
+
+# Uploaded chat attachments (user-generated runtime content; never commit).
+# Keep the tracked .gitkeep and .htaccess that protect the directory.
+upload/chat/*
+!upload/chat/.gitkeep
+!upload/chat/.htaccess

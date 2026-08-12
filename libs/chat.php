@@ -24,7 +24,27 @@ if (!defined('CHAT_UPLOAD_MAX_BYTES')) {
  */
 function chat_json($status, $msg, $data = null, $httpCode = 200)
 {
-    http_response_code($httpCode);
+    $httpCode = (int) $httpCode;
+    // Some SAPIs (notably Apache/mod_php) downgrade an unknown status code set
+    // via http_response_code() alone to 500 because it has no reason phrase.
+    // Emit a full HTTP status line with a reason phrase so custom codes such as
+    // 419/423/429 are preserved on the wire instead of turning into 500.
+    $reasons = [
+        200 => 'OK',
+        400 => 'Bad Request',
+        401 => 'Unauthorized',
+        403 => 'Forbidden',
+        404 => 'Not Found',
+        405 => 'Method Not Allowed',
+        408 => 'Request Timeout',
+        419 => 'Authentication Timeout',
+        422 => 'Unprocessable Content',
+        423 => 'Locked',
+        429 => 'Too Many Requests',
+        500 => 'Internal Server Error',
+    ];
+    $reason = $reasons[$httpCode] ?? 'OK';
+    header(sprintf('HTTP/1.1 %d %s', $httpCode, $reason), true, $httpCode);
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store');
     echo json_encode(['status' => $status, 'msg' => $msg, 'data' => $data], JSON_UNESCAPED_UNICODE);

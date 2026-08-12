@@ -60,7 +60,7 @@ if (0 < count($viewed_products)) {
                             echo '                                            <p class="p06">';
                             echo $detail['data'][$i]['label'];
                             echo ': ';
-                            echo decodecryptData($detail['Data'][$i]['value']);
+                            echo account_field_display($detail['data'][$i]);
                             echo '</p>
                                     ';
                         }

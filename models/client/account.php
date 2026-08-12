@@ -116,7 +116,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 echo '                                <p class="p06">';
                                 echo $detail['data'][$i]['label'];
                                 echo ': ';
-                                echo decodecryptData($detail['Data'][$i]['value']);
+                                echo account_field_display($detail['data'][$i]);
                                 echo '</p>
                         ';
                             }

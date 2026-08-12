@@ -113,7 +113,7 @@ if (!$user) {
                             echo '                                                                <div class="ws-my-1"><span class="ws-truncate ws-w-full ws-block"><span class="ws-mr-1 ws-text-zinc-700"><i class="ws-relative ws-top-[1px] bx bx-caret-right"></i> ';
                             echo $detail['data'][$i]['label'];
                             echo ': </span><span class="ws-font-medium">';
-                            echo decodecryptData($detail['Data'][$i]['value']);
+                            echo account_field_display($detail['data'][$i]);
                             echo '</span></span></div>
                                                         ';
                         }

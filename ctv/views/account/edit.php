@@ -105,7 +105,7 @@ echo '>Đã
                             </div>
                         </div>
                         ';
-$i = 2;
+$i = 0;
 while ($i < count($arr_data)) {
     echo '
                             <div class="col-md-4 mb-2">
@@ -130,7 +130,7 @@ while ($i < count($arr_data)) {
             echo '">
                                             ';
             $explode = explode('|', $detail_product['data'][$i]['value']);
-            $a = 2;
+            $a = 0;
             while ($a < count($explode)) {
                 echo '                                                <option value="';
                 echo $explode[$a];
@@ -165,7 +165,7 @@ if ($query['type'] == 'ACCOUNT') {
                                     </center>
                                     ';
     $arr_image = json_decode($query['image'], true);
-    $i = 2;
+    $i = 0;
     while ($i < count($arr_image)) {
         echo '                                        <img class="w-15 active lazyLoad" src="';
         echo DOMAIN . '/' . $arr_image[$i];

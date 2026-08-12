@@ -93,7 +93,7 @@ if ($row['type'] == 'RANDOM') {
                                     <label>Nhập dữ liệu</label>
                                     ';
     $placeholder = '';
-    $i = 2;
+    $i = 0;
     while ($i < count($detail['data'])) {
         $placeholder .= $detail['data'][$i]['label'];
         if ($i < count($detail['data']) - 1) {
@@ -110,7 +110,7 @@ if ($row['type'] == 'RANDOM') {
 } else {
     echo '
                             ';
-    $i = 2;
+    $i = 0;
     while ($i < count($detail['data'])) {
         echo '                                <div class="col-md-6">
                                     <div class="mb-2">

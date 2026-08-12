@@ -97,9 +97,9 @@ if (!$user) {
         echo $item['label'];
         echo '</p>
                                     <P>';
-        echo decodecryptData($item['value']);
+        echo account_field_display($item);
         echo ' <span class="ml-3 copy copyButton" data-text="';
-        echo decodecryptData($item['value']);
+        echo account_field_display($item);
         echo '"><i class="far fa-copy"></i></span></P>
                                 </div>
                             ';

@@ -165,11 +165,11 @@ echo '</h3>
                     ';
 $i = 2;
 while ($i < count($detail['data'])) {
-    if ($detail['data'][$i]['show'] == 'on') {
+    if (account_field_is_public($detail['data'][$i])) {
         echo '                            <p><span>';
         echo $detail['data'][$i]['label'];
         echo '</span> <span>';
-        echo decodecryptData($detail['Data'][$i]['value']);
+        echo account_field_display($detail['data'][$i]);
         echo '</span></p>
                     ';
     }
@@ -288,13 +288,13 @@ echo 'đ</p>
                                 ';
 $i = 2;
 while ($i < count($detail['data'])) {
-    if ($detail['data'][$i]['show'] == 'on') {
+    if (account_field_is_public($detail['data'][$i])) {
         echo '                                        <div class="line-thongtin">
                                             <p>';
         echo $detail['data'][$i]['label'];
         echo '</p>
                                             <p>';
-        echo decodecryptData($detail['Data'][$i]['value']);
+        echo account_field_display($detail['data'][$i]);
         echo '</p>
                                         </div>
                                 ';
@@ -396,11 +396,11 @@ foreach ($db->get_list($sql_show_1) as $info_1) {
                             ';
         $i = 2;
         while ($i < count($detail_1['data'])) {
-            if ($detail_1['data'][$i]['show'] == 'on') {
+            if (account_field_is_public($detail_1['data'][$i])) {
                 echo '                                    <p class="p06">';
                 echo $detail_1['data'][$i]['label'];
                 echo ': ';
-                echo decodecryptData($detail_1['Data'][$i]['value']);
+                echo account_field_display($detail_1['data'][$i]);
                 echo '</p>
                             ';
             }

@@ -176,7 +176,7 @@ foreach ($db->get_list('SELECT * FROM `flash_sales` WHERE ' . $where) as $flash)
                         echo '                                            <p class="p06">';
                         echo $detail['data'][$i]['label'];
                         echo ': <span>';
-                        echo decodecryptData($detail['Data'][$i]['value']);
+                        echo account_field_display($detail['data'][$i]);
                         echo '</span></p>
                                     ';
                     }

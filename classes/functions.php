@@ -849,3 +849,25 @@ class Redirect
         }
     }
 }
+
+function account_field_is_public($field)
+{
+    return is_array($field) && isset($field['show']) && $field['show'] == 'on';
+}
+
+function account_field_display($field)
+{
+    if (!is_array($field) || !isset($field['value'])) {
+        return '';
+    }
+    $value = $field['value'];
+    if (!is_string($value) || $value === '') {
+        return '';
+    }
+    try {
+        $plain = decodecryptData($value);
+    } catch (Throwable $e) {
+        return '';
+    }
+    return is_string($plain) ? $plain : '';
+}

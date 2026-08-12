@@ -37,19 +37,30 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                             if (count($_FILES['image']['name']) < 1) {
                                                 exit(JsonMsg('error', 'Bạn đang thiếu hình ảnh'));
                                             } else {
-                                                $i = 2;
+                                                $i = 0;
                                                 while ($i < count($_FILES['image']['name'])) {
                                                     array_push($link_anh, upload_multiple_file('image', 'product', $i));
                                                     ++$i;
                                                 }
-                                                $i = 2;
+                                                $link_anh = array_values(array_filter($link_anh, function ($v) {
+                                                    return is_string($v) && $v !== '';
+                                                }));
+                                                if (count($link_anh) < 1) {
+                                                    exit(JsonMsg('error', 'Bạn đang thiếu hình ảnh'));
+                                                }
+                                                $i = 0;
                                                 while ($i < count($detail['data'])) {
-                                                    if ($detail['data'][$i]['name'] == 'taikhoan' || $detail['data'][$i]['name'] == 'matkhau') {
-                                                        $name = encryptData(Anti_xss($_POST[$detail['data'][$i]['name']]));
-                                                    } else {
-                                                        $name = Anti_xss($_POST[$detail['data'][$i]['name']]);
+                                                    $field = $detail['data'][$i]['name'];
+                                                    if ($field === '' || $field === null || !isset($_POST[$field]) || Anti_xss($_POST[$field]) === '') {
+                                                        $label = isset($detail['data'][$i]['label']) && $detail['data'][$i]['label'] !== '' ? $detail['data'][$i]['label'] : 'đầy đủ thông tin';
+                                                        exit(JsonMsg('error', 'Vui lòng nhập ' . $label));
                                                     }
-                                                    array_push($arr_data, ['id' => $i, 'label' => $detail['data'][$i]['label'], 'type' => $detail['data'][$i]['type'], 'name' => $detail['data'][$i]['name'], 'value' => encryptData(Anti_xss($_POST[$detail['data'][$i]['name']])), 'show' => $detail['data'][$i]['show'], $detail['data'][$i]['name'] => $name]);
+                                                    if ($field == 'taikhoan' || $field == 'matkhau') {
+                                                        $name = encryptData(Anti_xss($_POST[$field]));
+                                                    } else {
+                                                        $name = Anti_xss($_POST[$field]);
+                                                    }
+                                                    array_push($arr_data, ['id' => $i, 'label' => $detail['data'][$i]['label'], 'type' => $detail['data'][$i]['type'], 'name' => $field, 'value' => encryptData(Anti_xss($_POST[$field])), 'show' => $detail['data'][$i]['show'], $field => $name]);
                                                     ++$i;
                                                 }
                                                 $json_image = json_encode($link_anh);
@@ -71,20 +82,28 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                         } else {
                                             function upload_random($arr, $account, $name_product)
 {
-    $i = 2;
+    $arr_data = [];
+    $i = 0;
     while ($i < count($arr)) {
-        $arr_data[] = ['id' => $i, 'label' => $arr[$i]['label'], 'type' => $arr[$i]['type'], 'name' => $arr[$i]['name'], 'value' => encryptData($account[$i]), 'show' => $arr[$i]['show']];
-        $json['author'] = 'db.NET';
-        $json['name_product'] = $name_product;
-        $json['data'] = $arr_data;
+        $value = isset($account[$i]) ? trim($account[$i]) : '';
+        $arr_data[] = ['id' => $i, 'label' => $arr[$i]['label'], 'type' => $arr[$i]['type'], 'name' => $arr[$i]['name'], 'value' => $value === '' ? '' : encryptData($value), 'show' => $arr[$i]['show']];
         ++$i;
     }
-    return $json;
+    return ['author' => 'db.NET', 'name_product' => $name_product, 'data' => $arr_data];
 }
                                             $arr = $detail['data'];
-                                            $data = explode('
-', $data);
-                                            $z = 2;
+                                            $data = array_values(array_filter(array_map('trim', explode("\n", str_replace("\r", '', $data))), function ($line) {
+                                                return $line !== '';
+                                            }));
+                                            if (count($data) < 1) {
+                                                exit(JsonMsg('error', 'Vui lòng nhập dữ liệu cần đăng'));
+                                            }
+                                            foreach ($data as $line) {
+                                                if (count(explode('|', $line)) < count($arr)) {
+                                                    exit(JsonMsg('error', 'Dữ liệu không đúng định dạng, cần ' . count($arr) . ' trường cách nhau bởi dấu |'));
+                                                }
+                                            }
+                                            $z = 0;
                                             foreach ($data as $key) {
                                                 $account = explode('|', $data[$z]);
                                                 $full_json = addslashes(json_encode(upload_random($arr, $account, $detail['name_product'])));
@@ -130,25 +149,33 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                                     $query = $db->get_row('SELECT * FROM `accounts` WHERE `id` = \'' . $id . '\'');
                                                     $full_img = '';
                                                     if ($query['type'] == 'ACCOUNT') {
-                                                        if (1 < count($_FILES['image']['name'])) {
-                                                            $i = 2;
-                                                            while ($i < count($_FILES['image']['name'])) {
-                                                                array_push($link_anh, upload_multiple_file('image', 'product', $i));
-                                                                ++$i;
-                                                            }
+                                                        $i = 0;
+                                                        while ($i < count($_FILES['image']['name'])) {
+                                                            array_push($link_anh, upload_multiple_file('image', 'product', $i));
+                                                            ++$i;
+                                                        }
+                                                        $link_anh = array_values(array_filter($link_anh, function ($v) {
+                                                            return is_string($v) && $v !== '';
+                                                        }));
+                                                        if (0 < count($link_anh)) {
                                                             $full_img = json_encode($link_anh);
                                                         } else {
                                                             $full_img = $query['image'];
                                                         }
                                                     }
-                                                    $i = 2;
+                                                    $i = 0;
                                                     while ($i < count($detail['data'])) {
-                                                        if ($detail['data'][$i]['name'] == 'taikhoan' || $detail['data'][$i]['name'] == 'matkhau') {
-                                                            $name = encryptData(Anti_xss($_POST[$detail['data'][$i]['name']]));
-                                                        } else {
-                                                            $name = Anti_xss($_POST[$detail['data'][$i]['name']]);
+                                                        $field = $detail['data'][$i]['name'];
+                                                        if ($field === '' || $field === null || !isset($_POST[$field]) || Anti_xss($_POST[$field]) === '') {
+                                                            $label = isset($detail['data'][$i]['label']) && $detail['data'][$i]['label'] !== '' ? $detail['data'][$i]['label'] : 'đầy đủ thông tin';
+                                                            exit(JsonMsg('error', 'Vui lòng nhập ' . $label));
                                                         }
-                                                        array_push($arr_data, ['id' => $i, 'label' => $detail['data'][$i]['label'], 'type' => $detail['data'][$i]['type'], 'name' => $detail['data'][$i]['name'], 'value' => encryptData(Anti_xss($_POST[$detail['data'][$i]['name']])), 'show' => $detail['data'][$i]['show'], $detail['data'][$i]['name'] => $name]);
+                                                        if ($field == 'taikhoan' || $field == 'matkhau') {
+                                                            $name = encryptData(Anti_xss($_POST[$field]));
+                                                        } else {
+                                                            $name = Anti_xss($_POST[$field]);
+                                                        }
+                                                        array_push($arr_data, ['id' => $i, 'label' => $detail['data'][$i]['label'], 'type' => $detail['data'][$i]['type'], 'name' => $field, 'value' => encryptData(Anti_xss($_POST[$field])), 'show' => $detail['data'][$i]['show'], $field => $name]);
                                                         ++$i;
                                                     }
                                                     $json['author'] = 'db.NET';

@@ -7,6 +7,7 @@ if (isset($_GET['id'])) {
     $row = $db->get_row(' SELECT * FROM `accounts` WHERE `id` = \'' . $id . '\' AND `status` = \'on\' ');
     if (!$row) {
         new Redirect('/');
+        exit;
     }
     if ($row['type'] == 'ACCOUNT') {
         saveViewedProduct($id);
@@ -23,6 +24,7 @@ if (isset($_GET['id'])) {
     $halfStar = 0.5 <= $rating - $fullStars;
 } else {
     new Redirect('/');
+    exit;
 }
 $title = 'Tài khoản - ' . $row['id'] . ' | ' . $db->site('title');
 require_once realpath($_SERVER['DOCUMENT_ROOT'] . '/views/header.php');

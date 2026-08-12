@@ -215,6 +215,12 @@ echo '<!DOCTYPE html>
                     </div>
                     <div class="button-menu1">
                         <a href="/customer/deposit" class="btn-naptien1">Nạp Tiền</a>
+                        <a class="notification-menu1 chat-header-link" href="/chat-box" style="position: relative;" title="Chat hỗ trợ">
+                            <span class="span-menu">
+                                <i class="far fa-comment-dots" style="font-size: 20px; margin-top: 10px;"></i>
+                                <span class="chat-badge-unread" data-chat-badge style="display:none">0</span>
+                            </span>
+                        </a>
                         <div class="notification-menu1">
                             <span class="span-menu open-notification1">
                                 <img src="/assets/images/ring.svg" alt="">
@@ -513,6 +519,12 @@ echo '<!DOCTYPE html>
                                 <a class="notification-menu1" href="/viewed">
                                     <span class="span-menu">
                                         <img src="/assets/images/viewermobile.png" alt="">
+                                    </span>
+                                </a>
+                                <a class="notification-menu1 chat-header-link" href="/chat-box" style="position: relative;" title="Chat hỗ trợ">
+                                    <span class="span-menu">
+                                        <i class="far fa-comment-dots" style="font-size: 20px; margin-top: 10px;"></i>
+                                        <span class="chat-badge-unread" data-chat-badge style="display:none">0</span>
                                     </span>
                                 </a>
                                 <div class="notification-menu1">

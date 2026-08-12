@@ -437,6 +437,33 @@ echo (string) (@filemtime(APP_ROOT . '/assets/js/cached.js') ?: 1);
 echo '"></script>
 <script src="/assets/js/swiper-slider-conf.js"></script>
 <script src="/assets/js/custom.js"></script>
-</body>
+';
+if ($user) {
+    echo '<script>
+(function () {
+    "use strict";
+    var badges = document.querySelectorAll("[data-chat-badge]");
+    if (!badges.length) { return; }
+    function refresh() {
+        fetch("/model/chat/conversation", { credentials: "same-origin", headers: { "X-Requested-With": "XMLHttpRequest" } })
+            .then(function (res) { return res.json(); })
+            .then(function (json) {
+                if (json.status !== "success" || !json.data || !json.data.conversation) { return; }
+                var unread = parseInt(json.data.conversation.unread, 10) || 0;
+                badges.forEach(function (badge) {
+                    badge.textContent = unread > 99 ? "99+" : String(unread);
+                    badge.style.display = unread > 0 ? "" : "none";
+                });
+            })
+            .catch(function () {});
+    }
+    // Trang chat tự quản lý badge sau khi đọc; vẫn poll để đồng bộ.
+    refresh();
+    setInterval(refresh, 10000);
+})();
+</script>
+';
+}
+echo '</body>
 
 </html>';

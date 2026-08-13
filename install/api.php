@@ -311,8 +311,22 @@ function installer_upsert_admin($mysqli, array $admin, &$err = '')
     $token = bin2hex(random_bytes(21)); // token ngẫu nhiên an toàn (42 hex chars)
     $createDate = date('Y-m-d H:i:s');
 
-    // Tránh trùng username với một member khác (không phải bootstrap admin).
-    $stmt = mysqli_prepare($mysqli, 'SELECT `id`, `username`, `password` FROM `users` WHERE `username` = ? LIMIT 1');
+    // Tìm row bootstrap admin. Base SQL gốc lưu password PLAINTEXT '!' (không phải
+    // sha1), nên chấp nhận cả hai dạng để tương thích mọi phiên bản dump.
+    $bootstrapId = null;
+    $stmt = mysqli_prepare($mysqli, "SELECT `id`, `password` FROM `users` WHERE `username` = 'admin' LIMIT 1");
+    if ($stmt) {
+        mysqli_stmt_execute($stmt);
+        $res = mysqli_stmt_get_result($stmt);
+        $row = $res ? mysqli_fetch_assoc($res) : null;
+        mysqli_stmt_close($stmt);
+        if ($row && ($row['password'] === '!' || $row['password'] === sha1('!'))) {
+            $bootstrapId = (int) $row['id'];
+        }
+    }
+
+    // Tránh trùng username với một member khác (không phải row bootstrap sẽ bị thay).
+    $stmt = mysqli_prepare($mysqli, 'SELECT `id` FROM `users` WHERE `username` = ? LIMIT 1');
     if (!$stmt) {
         $err = 'Lỗi truy vấn người dùng.';
         return false;
@@ -323,27 +337,9 @@ function installer_upsert_admin($mysqli, array $admin, &$err = '')
     $existing = $res ? mysqli_fetch_assoc($res) : null;
     mysqli_stmt_close($stmt);
 
-    if ($existing && !($existing['username'] === 'admin' && $existing['password'] === sha1('!'))) {
-        // Username bị chiếm bởi tài khoản khác không phải bootstrap.
-        if ($existing['username'] !== 'admin') {
-            $err = 'Tên đăng nhập quản trị đã tồn tại. Hãy chọn tên khác.';
-            return false;
-        }
-    }
-
-    // Ưu tiên cập nhật row bootstrap (username='admin' AND password=sha1('!')).
-    $bootstrapId = null;
-    $stmt = mysqli_prepare($mysqli, "SELECT `id` FROM `users` WHERE `username` = 'admin' AND `password` = ? LIMIT 1");
-    if ($stmt) {
-        $shaBootstrap = sha1('!');
-        mysqli_stmt_bind_param($stmt, 's', $shaBootstrap);
-        mysqli_stmt_execute($stmt);
-        $res = mysqli_stmt_get_result($stmt);
-        $row = $res ? mysqli_fetch_assoc($res) : null;
-        mysqli_stmt_close($stmt);
-        if ($row) {
-            $bootstrapId = (int) $row['id'];
-        }
+    if ($existing && (int) $existing['id'] !== (int) $bootstrapId) {
+        $err = 'Tên đăng nhập quản trị đã tồn tại. Hãy chọn tên khác.';
+        return false;
     }
 
     if ($bootstrapId !== null) {

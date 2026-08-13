@@ -143,6 +143,25 @@ ok(count($core) >= 5, 'core schema has >= 5 tables');
 ok(in_array('chat_conversations', $full, true) && in_array('chat_messages', $full, true), 'full schema includes chat tables');
 ok(count($full) > count($core), 'full schema is a superset of core');
 
+/* ---- planned_tables parser: phải bắt được CREATE TABLE có prefix comment ---- */
+// installer_split_sql() giữ lại comment header đầu statement; regex planned_tables
+// KHÔNG được neo '^' nếu không sẽ bỏ sót toàn bộ bảng (allowlist sai => recovery
+// không DROP được bảng dở). Test với định dạng giống hệt dump thật.
+$plannedSql = "--\n\n--\n\nCREATE TABLE `accounts` (\n  `id` int(11) NOT NULL\n);\n"
+    . "-- comment\nCREATE TABLE `users` (`id` int);\n"
+    . "/* block */\nCREATE TABLE IF NOT EXISTS `chat_conversations` (`id` int);\n";
+$planned = [];
+foreach (installer_split_sql($plannedSql) as $st) {
+    if (preg_match('/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?`?([A-Za-z0-9_]+)`?/i', $st, $m)) {
+        $planned[$m[1]] = true;
+    }
+}
+ok(count($planned) === 3
+    && isset($planned['accounts'], $planned['users'], $planned['chat_conversations']),
+    'planned_tables parser handles comment-prefixed CREATE TABLE');
+// Base dump thật phải cho >= 46 bảng (46 base + 2 chat migration = 48).
+ok(count(installer_planned_tables()) === 48, 'planned_tables parses all 48 real tables');
+
 /* ---- cleanup ---- */
 @unlink(APP_ROOT . '/config.php');
 @rmdir(APP_ROOT . '/storage');

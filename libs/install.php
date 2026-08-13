@@ -603,7 +603,11 @@ function installer_planned_tables()
             continue;
         }
         foreach (installer_split_sql($sql) as $stmt) {
-            if (preg_match('/^\s*CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?`?([A-Za-z0-9_]+)`?/i', $stmt, $m)) {
+            // installer_split_sql() giữ lại các comment header (dòng "--" rỗng,
+            // block comment) ở ĐẦU statement, nên CREATE TABLE không nằm ở vị
+            // trí đầu chuỗi. Tìm CREATE TABLE ở bất kỳ đâu trong statement
+            // (statement DDL hợp lệ chỉ chứa đúng một CREATE TABLE).
+            if (preg_match('/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?`?([A-Za-z0-9_]+)`?/i', $stmt, $m)) {
                 $planned[$m[1]] = true;
             }
         }

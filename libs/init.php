@@ -5,6 +5,18 @@ if (!defined('APP_ROOT')) {
     define('APP_ROOT', dirname(__DIR__));
 }
 
+require_once APP_ROOT . '/libs/install.php';
+
+// Redirect every public request to the installer until the site is installed.
+// This runs before RSA key generation and any DB access so an uninstalled site
+// never fatals. Skipped for the installer itself so the wizard/API can run.
+$__requestPath = (string) parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+if (strpos($__requestPath, '/install') !== 0 && !isApplicationInstalled()) {
+    header('Location: /install/', true, 302);
+    exit;
+}
+unset($__requestPath);
+
 if (!function_exists('ensureLocalRsaKeys')) {
     function ensureLocalRsaKeys($root)
     {

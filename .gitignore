@@ -4,6 +4,9 @@ config.local.php
 security/*.pem
 security/.keygen.lock
 
+# Installer runtime state (installed.lock, concurrency mutex)
+storage/
+
 # Runtime logs/caches
 *.log
 update.txt

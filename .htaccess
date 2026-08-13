@@ -8,8 +8,14 @@ RewriteBase /
 # THE_REQUEST keeps internal rewrites to model PHP files working.
 RewriteCond %{THE_REQUEST} \s/+((classes|libs|models|security|vendor)/) [NC]
 RewriteRule ^ - [F,L]
-RewriteCond %{THE_REQUEST} \s/+(config\.php|composer\.(json|lock)|version\.php|update\.php|[^?\s]*\.sql)([?\s]) [NC]
+RewriteCond %{THE_REQUEST} \s/+(config\.php|config\.local\.php|composer\.(json|lock)|version\.php|update\.php|[^?\s]*\.sql)([?\s]) [NC]
 RewriteRule ^ - [F,L]
+# Runtime state directory (installed.lock, mutex) is never served directly.
+RewriteCond %{THE_REQUEST} \s/+storage/ [NC]
+RewriteRule ^ - [F,L]
+
+# Installer wizard (self-locks once the site is installed).
+RewriteRule ^install/?$ install/index.php [L,QSA,NC]
 RewriteCond %{THE_REQUEST} \s/+((assets|upload)/[^?\s]*\.(php[0-9]?|phtml|phar))([?\s]) [NC]
 RewriteRule ^ - [F,L]
 RewriteRule (^|/)\.(?!well-known/) - [F,L]

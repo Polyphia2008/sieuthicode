@@ -21,7 +21,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 // CSRF bắt buộc cho mọi hành động thay đổi trạng thái.
 $token = $_POST['csrf_token'] ?? '';
 if (!installer_csrf_ok($token)) {
-    installer_json(false, 'Phiên làm việc không hợp lệ (CSRF). Vui lòng tải lại trang.', [], 419);
+    // Dùng 403 (chuẩn HTTP) thay cho 419 — Apache 2.4 rewrite status code không
+    // chuẩn (không có reason phrase) thành 500.
+    installer_json(false, 'Phiên làm việc không hợp lệ (CSRF). Vui lòng tải lại trang.', [], 403);
 }
 
 $action = (string) ($_POST['action'] ?? '');

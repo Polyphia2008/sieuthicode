@@ -1,58 +1,163 @@
-# Hướng dẫn cài đặt source trên cPanel
+# Siêu Thị Code — Hướng dẫn cài đặt trên cPanel
+
+Source đi kèm **trình cài đặt web ba bước** tại `/install`. Với cài đặt mới bạn
+**không cần** import SQL thủ công, không cần chạy migration chat thủ công,
+không cần sửa `config.php`, và không cần chạy SQL đổi mật khẩu admin — trình
+cài đặt làm toàn bộ các bước đó.
 
 ## Yêu cầu hosting
 
-- Apache/LiteSpeed có `mod_rewrite` và cho phép `.htaccess`.
-- PHP **8.1 hoặc 8.2**.
+- Apache/LiteSpeed có `mod_rewrite` và cho phép `.htaccess` (`AllowOverride All`).
+- PHP **8.1 hoặc 8.2** (8.4 cũng hoạt động).
 - PHP extensions: `mysqli`, `curl`, `openssl`, `gd`, `mbstring`, `json`, `fileinfo`.
 - MySQL/MariaDB hỗ trợ `utf8mb4`.
 
 Không cần ionCube Loader. Các file phụ thuộc ionCube cũ đã được thay bằng PHP thường.
 
-## Cài đặt
+## Cài đặt mới (fresh install)
 
-1. Trong cPanel, mở **MultiPHP Manager** và chọn PHP 8.1 hoặc 8.2 cho tên miền.
+1. Trong cPanel, mở **MultiPHP Manager** và chọn PHP 8.1/8.2 cho tên miền.
 2. Mở **Select PHP Version / PHP Extensions** và bật các extension ở phần yêu cầu.
-3. Upload toàn bộ source vào đúng **Document Root** của tên miền, thường là `public_html`.
+3. Upload toàn bộ source vào đúng **Document Root** của tên miền (thường là `public_html`).
    - Phải upload cả file ẩn `.htaccess`.
    - Không đặt thêm một thư mục con nếu tên miền vẫn trỏ tới `public_html`, vì các URL trong source bắt đầu bằng `/`.
 4. Trong **MySQL Databases**:
-   - Tạo database.
-   - Tạo database user.
-   - Thêm user vào database và chọn **ALL PRIVILEGES**.
-5. Import file `shoprobloxv4 (2).sql` bằng phpMyAdmin.
-6. Sửa `config.php`:
+   - **Tạo database** mới.
+   - **Tạo database user** mới.
+   - **Thêm user vào database và chọn ALL PRIVILEGES** (cần quyền CREATE/INSERT/ALTER...).
+5. Mở trang chủ tên miền — bạn sẽ được tự động chuyển sang **`/install`**.
+6. Làm theo **3 bước** của trình cài đặt:
+   - **Bước 1 — Kết nối database**: nhập host/port/database name/username/password
+     vừa tạo ở bước 4, bấm *Kiểm tra kết nối*.
+   - **Bước 2 — Tài khoản quản trị**: nhập họ tên, tên đăng nhập, email, mật khẩu
+     (tối thiểu 8 ký tự). Tài khoản này thay thế tài khoản `admin` mẫu trong SQL.
+   - **Bước 3 — Xác nhận & cài đặt**: kiểm tra lại thông tin (không hiển thị mật
+     khẩu) rồi bấm *Cài đặt ngay*.
+7. Khi thấy "Cài đặt thành công", mở `/login` và đăng nhập bằng tài khoản vừa tạo.
+   Trang quản trị nằm tại `/cpanel/home`.
+8. Vào trang quản trị để cấu hình liên hệ, API thẻ, ngân hàng, SMTP, Telegram,
+   Google OAuth và Pusher.
 
-```php
-define('DB_HOST', 'localhost');
-define('DB_PORT', 3306);
-define('DB_USERNAME', 'TENCPANEL_databaseuser');
-define('DB_DATABASE', 'TENCPANEL_databasename');
-define('DB_PASSWORD', 'MAT_KHAU_DATABASE');
-```
+Trình cài đặt tự động: import base SQL (`shoprobloxv4 (2).sql`), import migration
+chat (`database/migrations/20260812_chat_box.sql`), tạo tài khoản admin, ghi
+`config.local.php` (quyền 600) và tạo `storage/installed.lock`. Sau khi cài xong,
+`/install` **tự khoá** — mọi truy cập vào `/install` sẽ bị chuyển về trang chủ.
 
-7. Bản SQL công khai chỉ tạo tài khoản quản trị `admin` ở trạng thái chưa có mật khẩu. Trong phpMyAdmin, chọn database, mở tab **SQL** và chạy lệnh sau sau khi thay mật khẩu/email:
+### An toàn dữ liệu
 
-```sql
-UPDATE `users`
-SET `password` = SHA1('MAT_KHAU_ADMIN_MOI'),
-    `email` = 'email-cua-ban@example.com',
-    `token` = MD5(CONCAT(UUID(), RAND()))
-WHERE `username` = 'admin';
-```
-
-8. Mở `/login`, đăng nhập bằng username `admin` và mật khẩu vừa đặt. Trang quản trị nằm tại `/cpanel/home`.
-9. Vào trang quản trị để thay toàn bộ cấu hình liên hệ, API thẻ, ngân hàng, SMTP, Telegram, Google OAuth và Pusher.
+- Trình cài đặt **chỉ cài vào database trống**. Nếu database đã có bảng, nó từ
+  chối để bảo vệ dữ liệu hiện có (không ghi đè, không xoá).
+- Nếu quá trình cài bị gián đoạn (mất mạng, timeout, server restart), lần chạy
+  lại sẽ tự dọn các bảng đã tạo dở (ghi nhận trong `storage/install.journal.json`)
+  rồi cài lại sạch. **Không bao giờ xoá bảng tồn tại trước khi cài.**
 
 ## Quyền file/thư mục
 
 Khuyến nghị trên cPanel PHP-FPM/LiteSpeed:
 
-- Thư mục: `755`.
-- File: `644`.
-- Các thư mục con trong `upload/`: phải cho tài khoản hosting ghi được; thường `755`, một số hosting cần `775`.
-- Thư mục `security/`: `755`. Hệ thống tự sinh RSA key riêng ở lần chạy đầu tiên; private key được đặt quyền `600` nếu hosting hỗ trợ.
+- Thư mục: `755`; file: `644`.
+- `config.local.php` (do installer tạo): `600` — chứa thông tin database, không commit, không chia sẻ.
+- `storage/`: cần cho PHP ghi được (`755`, một số hosting cần `775`). Chứa `installed.lock`, mutex và journal — đã bị `.htaccess` chặn truy cập trực tiếp.
+- `security/`: cần cho PHP ghi được. Hệ thống tự sinh RSA key riêng ở lần chạy đầu tiên; private key đặt quyền `600` nếu hosting hỗ trợ.
+- Các thư mục con trong `upload/`: phải cho tài khoản hosting ghi được.
 - Không dùng `777` trừ khi nhà cung cấp hosting bắt buộc và bạn hiểu rủi ro.
+
+## Nâng cấp website cũ (đã cài từ bản trước)
+
+Website cũ — đã import SQL và **sửa credential trực tiếp trong `config.php`**
+theo hướng dẫn cũ — **tiếp tục hoạt động bình thường** sau khi upload source mới:
+
+- **Không** bị redirect sang `/install` (hệ thống tự nhận diện database đã có
+  schema hợp lệ và credential đã cấu hình trong `config.php`).
+- **Không** đổi admin, **không** import lại SQL, **không** mất dữ liệu.
+- Credential trong `config.php` được giữ nguyên, không bị ghi đè.
+- Ở request đầu tiên, hệ thống tự tạo `storage/installed.lock` (sau khi xác minh
+  đủ schema) để khoá installer — đây là thao tác an toàn, chỉ ghi một file marker.
+
+### Bổ sung chat-box cho source cũ chưa có chat
+
+Chỉ cần chạy migration chat (idempotent — chạy lại nhiều lần vẫn an toàn):
+
+```bash
+mysql DATABASE_NAME < database/migrations/20260812_chat_box.sql
+```
+
+### Chuyển từ `config.php` sang `config.local.php` (tuỳ chọn)
+
+Không bắt buộc. Nếu muốn tách credential khỏi `config.php` (để cập nhật source
+sau này không ghi đè), tạo file `config.local.php` ở thư mục gốc với nội dung:
+
+```php
+<?php
+return [
+    'db' => [
+        'host' => 'localhost',
+        'port' => 3306,
+        'username' => 'TENCPANEL_databaseuser',
+        'password' => 'MAT_KHAU_DATABASE',
+        'database' => 'TENCPANEL_databasename',
+    ],
+];
+```
+
+Đặt quyền `600` cho file này. Khi cả hai cùng tồn tại, `config.local.php` được
+ưu tiên, sau đó tới biến môi trường `DB_*`, cuối cùng là `config.php`.
+
+## Sao lưu (backup)
+
+Trước khi nâng cấp source hoặc thay đổi lớn:
+
+1. **Database**: cPanel → **Backup** → *Download a MySQL Database Backup*, hoặc
+   phpMyAdmin → *Export* (chọn Quick, đủ dùng cho đa số trường hợp).
+2. **File**: tải về toàn bộ Document Root, hoặc cPanel → **Backup** →
+   *Download a Full Website Backup*. Tối thiểu giữ lại:
+   - `config.php` và/hoặc `config.local.php` (credential database),
+   - `security/` (RSA key — mất key sẽ mất khả năng giải mã dữ liệu đã mã hoá),
+   - `upload/` (ảnh, file đính kèm chat),
+   - `storage/installed.lock` (không bắt buộc; nếu thiếu, hệ thống tự tạo lại khi
+     database hợp lệ).
+
+## Xử lý lỗi thường gặp (troubleshooting)
+
+### HTTP 500 ngay khi mở trang
+
+- Kiểm tra file `.htaccess` đã được upload.
+- Chọn PHP 8.1/8.2; bật `mysqli`, `curl`, `openssl`, `gd`.
+- Mở `public_html/error_log` hoặc **Metrics → Errors** trong cPanel.
+
+### Trang chủ mở được nhưng URL khác bị 404
+
+- `.htaccess` bị thiếu hoặc `mod_rewrite` chưa bật / vhost chưa `AllowOverride All`.
+- Source không nằm đúng Document Root của tên miền.
+
+### Báo không kết nối được cơ sở dữ liệu
+
+- Tên database/user trên cPanel thường có **tiền tố tài khoản** (vd: `user_shop`).
+- Phải thêm database user vào database với **ALL PRIVILEGES** — thiếu quyền
+  CREATE/INSERT/ALTER sẽ khiến bước kiểm tra của installer báo lỗi.
+- DB host đa số là `localhost`; dùng giá trị nhà cung cấp đưa ra nếu khác.
+- Nếu website **đang chạy** bỗng hiện "Không thể kết nối cơ sở dữ liệu": đây là
+  lỗi database tạm thời, **không phải** lỗi chưa cài đặt — trình cài đặt sẽ không
+  tự mở lại. Kiểm tra dịch vụ MySQL và credential.
+
+### Trình cài đặt báo "Database này đã có dữ liệu"
+
+- Đây là cơ chế bảo vệ: installer không ghi đè database không trống. Nếu đây là
+  website cũ, giữ nguyên cấu hình hiện tại (không cài lại). Nếu muốn cài mới hoàn
+  toàn, hãy tạo một database trống khác.
+
+### Import SQL bị timeout / cài đặt dừng giữa chừng
+
+- File SQL gốc khá lớn; trên hosting yếu việc import có thể vượt giới hạn thời
+  gian PHP. Nếu bị gián đoạn, **cứ mở lại `/install` và chạy lại** — journal trong
+  `storage/` sẽ dọn các bảng cài dở rồi cài lại sạch, không làm hỏng dữ liệu cũ.
+- Nếu lỗi lặp lại: tăng `max_execution_time` trong **MultiPHP INI Editor** (vd 300),
+  và/hoặc nhờ nhà cung cấp tăng giới hạn; sau đó chạy lại installer.
+
+### Không upload được hình ảnh
+
+- Kiểm tra các thư mục trong `upload/` tồn tại và có quyền ghi.
+- Kiểm tra `upload_max_filesize` và `post_max_size` trong MultiPHP INI Editor.
 
 ## Google OAuth
 
@@ -72,64 +177,13 @@ Repository hiện có thư mục `vendor`, vì vậy có thể chạy ngay sau k
 composer install --no-dev --optimize-autoloader
 ```
 
-## Xử lý lỗi thường gặp
-
-### HTTP 500 ngay khi mở trang
-
-- Kiểm tra file `.htaccess` đã được upload.
-- Chọn PHP 8.1/8.2.
-- Bật `mysqli`, `curl`, `openssl`, `gd`.
-- Mở `public_html/error_log` hoặc **Metrics → Errors** trong cPanel.
-- Kiểm tra `config.php` và quyền database user.
-
-### Trang chủ mở được nhưng URL khác bị 404
-
-- `.htaccess` bị thiếu hoặc `mod_rewrite` chưa bật.
-- Source không nằm đúng Document Root của tên miền.
-
-### Báo không kết nối được cơ sở dữ liệu
-
-- Tên database/user trên cPanel thường có tiền tố tài khoản.
-- Phải thêm database user vào database với ALL PRIVILEGES.
-- DB host đa số là `localhost`; dùng giá trị nhà cung cấp hosting đưa ra nếu khác.
-
-### Không upload được hình ảnh
-
-- Kiểm tra các thư mục trong `upload/` tồn tại và có quyền ghi.
-- Kiểm tra giới hạn `upload_max_filesize` và `post_max_size` trong MultiPHP INI Editor.
-
-## Lưu ý an toàn trước khi công khai
-
-SQL cài đặt đã được loại bỏ log vận hành, giao dịch, token, thông tin người dùng thật và các khóa API đã xuất. Không đưa database đang hoạt động hoặc file RSA sinh trên hosting trở lại repository công khai.
-
 ## Chat hỗ trợ (chat-box)
 
 Tính năng chat CSKH hai phía giữa thành viên và quản trị viên: thành viên chat tại `/chat-box`, admin quản lý hòm thư tại `/cpanel/chat-box`.
 
-### Cài đặt mới (fresh install)
-
-1. Import base SQL (`shoprobloxv4 (2).sql`) như hướng dẫn ở trên.
-2. Import migration chat:
-
-```bash
-mysql DATABASE_NAME < database/migrations/20260812_chat_box.sql
-```
-
-### Nâng cấp (source cũ chưa có chat)
-
-Chỉ cần chạy migration chat:
-
-```bash
-mysql DATABASE_NAME < database/migrations/20260812_chat_box.sql
-```
-
-Migration dùng `CREATE TABLE IF NOT EXISTS` nên **chạy lại nhiều lần vẫn an toàn** (idempotent), không xóa hay ghi đè dữ liệu chat hiện có.
-
-### Yêu cầu server
-
-- Apache có `mod_rewrite` bật và vhost đặt `AllowOverride All` (để `.htaccess` gốc và `upload/chat/.htaccess` có hiệu lực).
-- PHP extensions: `mysqli`, `mbstring`, `curl`, `gd`, `fileinfo` (ngoài các extension ở phần yêu cầu chung).
-- Thư mục `security/` và `upload/chat/` phải cho PHP/web server ghi được (`755`, một số hosting cần `775`; chạy bằng user web như www-data thì chown cho user đó).
+- **Fresh install**: trình cài đặt đã import migration chat tự động — không cần thao tác thêm.
+- **Nâng cấp từ source cũ**: chỉ cần chạy migration chat như mục nâng cấp ở trên.
+- **Kiến trúc realtime**: AJAX polling thuần (tin nhắn mỗi ~4 giây, badge chưa đọc mỗi ~10 giây) — tương thích hosting chia sẻ/cPanel. **Không cần WebSocket, NodeJS hay Redis.**
 
 ### Bảo mật file đính kèm
 
@@ -137,7 +191,6 @@ Migration dùng `CREATE TABLE IF NOT EXISTS` nên **chạy lại nhiều lần v
 - File đính kèm chỉ được tải qua endpoint có xác thực `/model/chat/attachment?message_id=N`: chủ hội thoại hoặc admin mới nhận 200, thành viên khác 403, khách 401. Đường dẫn file lấy từ DB (không nhận từ query string), kiểm tra basename + realpath containment + MIME whitelist trước khi stream.
 - **Không commit file runtime trong `upload/chat/`** (ảnh người dùng upload). `.gitignore` đã loại trừ; chỉ giữ `.gitkeep` và `.htaccess` được track.
 
-### Kiến trúc realtime
+## Lưu ý an toàn trước khi công khai
 
-- Dùng AJAX polling thuần (tin nhắn mỗi ~4 giây, badge chưa đọc mỗi ~10 giây) — tương thích hosting chia sẻ/cPanel.
-- **Không cần WebSocket, NodeJS hay Redis.**
+SQL cài đặt đã được loại bỏ log vận hành, giao dịch, token, thông tin người dùng thật và các khóa API đã xuất. Không đưa database đang hoạt động, `config.local.php`, `storage/installed.lock`, file RSA sinh trên hosting hoặc cookie/token phiên trở lại repository công khai.

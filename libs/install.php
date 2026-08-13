@@ -65,7 +65,19 @@ function installer_journal_path()
  *                    installed.lock — database có thể đang import dở. Request
  *                    công khai phải nhận 503 "Đang cài đặt" thay vì chạy app
  *                    trên database dở dang, và TUYỆT ĐỐI không tạo lock sớm.
+ *  - 'interrupted' : có journal cài đặt dở HỢP LỆ khớp fingerprint cấu hình
+ *                    hiện tại — lần cài trước bị hard-kill. Không được coi là
+ *                    installed dù core schema đã tồn tại; không tự tạo lock;
+ *                    trang thường nhận 503 "Cài đặt bị gián đoạn", /install
+ *                    mở để phục hồi.
+ *  - 'journal_invalid' : journal hỏng / sai version / fingerprint không khớp.
+ *                    Fail closed: không DROP gì, không chạy app trên database
+ *                    dở, không tự tạo lock; hiển thị lỗi an toàn yêu cầu quản
+ *                    trị viên kiểm tra journal.
  *  - 'uninstalled' : chưa có cấu hình rõ ràng, hoặc DB kết nối được nhưng trống.
+ *
+ * Website legacy CHỈ được coi là installed khi không có journal cài dở VÀ có
+ * core schema hợp lệ (hoặc có installed.lock).
  *
  * Kết quả được cache trong suốt request để tránh kết nối DB nhiều lần.
  */
@@ -86,6 +98,31 @@ function installer_state()
     //     503 "Đang cài đặt"; không kết nối DB, không ghi installed.lock sớm.
     if (installer_mutex_is_held()) {
         return $state = 'installing';
+    }
+
+    /*
+     * 1c) Journal cài đặt dở (hard-interruption) được kiểm tra TRƯỚC khi kết
+     *     luận "installed" từ core schema: một database đã import xong base SQL
+     *     nhưng bị kill trước chat migration / admin / config / lock vẫn có đủ
+     *     core schema — tuyệt đối không được coi là đã cài, không tự tạo lock.
+     */
+    $journal = installer_journal_read();
+    if ($journal !== null) {
+        $cfg = installer_existing_db_config();
+        if (!empty($journal['ok']) && $cfg !== null
+            && $journal['fingerprint'] !== ''
+            && hash_equals($journal['fingerprint'], installer_journal_fingerprint($cfg))
+        ) {
+            // Journal hợp lệ khớp đích hiện tại => lần cài trước bị gián đoạn.
+            return $state = 'interrupted';
+        }
+        if ($cfg === null && !empty($journal['ok'])) {
+            // Chưa có cấu hình rõ ràng: mở installer để người dùng nhập lại DB
+            // và phục hồi qua fingerprint (test_db/install tự kiểm chứng).
+            return $state = 'uninstalled';
+        }
+        // Journal hỏng / sai version / fingerprint không khớp: fail closed.
+        return $state = 'journal_invalid';
     }
 
     // 2) Cấu hình DB rõ ràng: config.local.php > env > config.php đã sửa tay.

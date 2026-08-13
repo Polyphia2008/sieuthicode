@@ -186,8 +186,22 @@ function installer_handle_install()
 
     try {
         // Re-check sau khi đã giữ lock: có thể tiến trình kia vừa cài xong.
-        if (installer_state_fresh() === 'installed') {
+        $fresh = installer_state_fresh();
+        if ($fresh === 'installed') {
             installer_json(false, 'Website vừa được cài đặt xong. Không cần cài lại.', [], 409);
+        }
+        // 'interrupted' (journal hợp lệ khớp fingerprint) được phép đi tiếp:
+        // installer_journal_recover() bên dưới sẽ cleanup đúng allowlist.
+        // 'journal_invalid' bị chặn fail-closed, KHÔNG DROP gì.
+        if ($fresh === 'journal_invalid') {
+            installer_json(
+                false,
+                'Phát hiện journal cài đặt dở nhưng không thể xác minh an toàn (file hỏng, sai phiên bản '
+                . 'hoặc thuộc máy chủ database khác). Không tự động dọn dẹp. Quản trị viên hãy kiểm tra '
+                . 'database rồi xoá thủ công storage/install.journal.json trước khi cài lại.',
+                [],
+                409
+            );
         }
 
         // Kết nối lại DB lần cuối.

@@ -36,6 +36,41 @@ if (strpos($__requestPath, '/install') !== 0) {
             . '<p style="color:#8b93ad;font-size:14px;line-height:1.6">Website đang được cài đặt. '
             . 'Vui lòng chờ quá trình cài đặt hoàn tất rồi tải lại trang.</p></div></body></html>');
     }
+    if ($__state === 'interrupted') {
+        // Lần cài trước bị hard-kill (journal hợp lệ khớp fingerprint) nhưng
+        // chưa có installed.lock: KHÔNG chạy app trên database dở, KHÔNG tự
+        // tạo lock. Người dùng mở /install để phục hồi an toàn.
+        installer_status_header(503);
+        header('Content-Type: text/html; charset=utf-8');
+        header('Retry-After: 30');
+        exit('<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8">'
+            . '<meta name="viewport" content="width=device-width, initial-scale=1">'
+            . '<title>Cài đặt bị gián đoạn</title></head><body '
+            . 'style="font-family:system-ui,Arial,sans-serif;display:flex;align-items:center;'
+            . 'justify-content:center;min-height:100vh;margin:0;background:#0f1420;color:#e6e9f2">'
+            . '<div style="max-width:480px;padding:24px;text-align:center">'
+            . '<h1 style="font-size:20px">Cài đặt bị gián đoạn</h1>'
+            . '<p style="color:#8b93ad;font-size:14px;line-height:1.6">Lần cài đặt trước đã bị gián đoạn '
+            . 'đột ngột. Website chưa sẵn sàng. Hãy mở <a href="/install/" style="color:#8fb0ff">trình cài đặt</a> '
+            . 'để hoàn tất — dữ liệu hiện có được giữ nguyên, chỉ các bảng do trình cài đặt tạo dở sẽ được dọn.</p></div></body></html>');
+    }
+    if ($__state === 'journal_invalid') {
+        // Journal hỏng / sai version / fingerprint không khớp: fail closed.
+        // Không DROP gì, không chạy app trên database dở, không tự tạo lock.
+        installer_status_header(503);
+        header('Content-Type: text/html; charset=utf-8');
+        exit('<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8">'
+            . '<meta name="viewport" content="width=device-width, initial-scale=1">'
+            . '<title>Cần kiểm tra cài đặt</title></head><body '
+            . 'style="font-family:system-ui,Arial,sans-serif;display:flex;align-items:center;'
+            . 'justify-content:center;min-height:100vh;margin:0;background:#0f1420;color:#e6e9f2">'
+            . '<div style="max-width:480px;padding:24px;text-align:center">'
+            . '<h1 style="font-size:20px">Cần kiểm tra cài đặt</h1>'
+            . '<p style="color:#8b93ad;font-size:14px;line-height:1.6">Phát hiện journal cài đặt dở nhưng không '
+            . 'thể xác minh an toàn (file hỏng, sai phiên bản hoặc thuộc máy chủ database khác). '
+            . 'Website tạm dừng để bảo vệ dữ liệu. Quản trị viên hãy kiểm tra database rồi xoá thủ công '
+            . 'storage/install.journal.json trước khi tiếp tục.</p></div></body></html>');
+    }
     if ($__state === 'offline') {
         installer_status_header(503);
         header('Content-Type: text/html; charset=utf-8');

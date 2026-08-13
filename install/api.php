@@ -63,14 +63,43 @@ function installer_handle_test_db()
     $tables = installer_list_tables($mysqli);
     $foreign = installer_foreign_tables($tables);
     if (!empty($foreign)) {
-        mysqli_close($mysqli);
-        installer_json(
-            false,
-            'Database này đã có dữ liệu. Để bảo vệ dữ liệu hiện có, trình cài đặt chỉ cài mới vào database trống. '
-            . 'Nếu đây là website cũ, hãy giữ nguyên cấu hình hiện tại thay vì cài lại.',
-            [],
-            409
-        );
+        /*
+         * Cho phép retry sau hard-kill: nếu có journal hợp lệ khớp fingerprint
+         * và MỌI bảng hiện có đều nằm trong allowlist (initial ∪ planned) thì
+         * bước install sẽ tự dọn phần dở trước khi cài lại. Ngược lại (không có
+         * journal, journal hỏng, sai fingerprint, hoặc có bảng ngoài allowlist)
+         * vẫn từ chối để bảo vệ dữ liệu.
+         */
+        $journal = installer_journal_read();
+        $recoverable = false;
+        if (is_array($journal) && !empty($journal['ok'])
+            && $journal['database'] === (string) $cfg['database']
+            && $journal['fingerprint'] !== ''
+            && hash_equals($journal['fingerprint'], installer_journal_fingerprint($cfg))
+        ) {
+            $allowed = array_merge($journal['initial_tables'], $journal['planned_tables']);
+            $recoverable = count(array_diff($foreign, $allowed)) === 0;
+        }
+        if (!$recoverable) {
+            mysqli_close($mysqli);
+            if (is_array($journal)) {
+                installer_json(
+                    false,
+                    'Phát hiện journal cài đặt dở nhưng không thể tự phục hồi an toàn (file hỏng, sai phiên bản, '
+                    . 'fingerprint không khớp hoặc database có bảng ngoài danh sách installer tạo). '
+                    . 'Hãy kiểm tra database rồi xoá thủ công storage/install.journal.json.',
+                    [],
+                    409
+                );
+            }
+            installer_json(
+                false,
+                'Database này đã có dữ liệu. Để bảo vệ dữ liệu hiện có, trình cài đặt chỉ cài mới vào database trống. '
+                . 'Nếu đây là website cũ, hãy giữ nguyên cấu hình hiện tại thay vì cài lại.',
+                [],
+                409
+            );
+        }
     }
 
     if (!installer_check_privileges($mysqli, $err)) {

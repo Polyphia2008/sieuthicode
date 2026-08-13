@@ -101,3 +101,43 @@ composer install --no-dev --optimize-autoloader
 ## Lưu ý an toàn trước khi công khai
 
 SQL cài đặt đã được loại bỏ log vận hành, giao dịch, token, thông tin người dùng thật và các khóa API đã xuất. Không đưa database đang hoạt động hoặc file RSA sinh trên hosting trở lại repository công khai.
+
+## Chat hỗ trợ (chat-box)
+
+Tính năng chat CSKH hai phía giữa thành viên và quản trị viên: thành viên chat tại `/chat-box`, admin quản lý hòm thư tại `/cpanel/chat-box`.
+
+### Cài đặt mới (fresh install)
+
+1. Import base SQL (`shoprobloxv4 (2).sql`) như hướng dẫn ở trên.
+2. Import migration chat:
+
+```bash
+mysql DATABASE_NAME < database/migrations/20260812_chat_box.sql
+```
+
+### Nâng cấp (source cũ chưa có chat)
+
+Chỉ cần chạy migration chat:
+
+```bash
+mysql DATABASE_NAME < database/migrations/20260812_chat_box.sql
+```
+
+Migration dùng `CREATE TABLE IF NOT EXISTS` nên **chạy lại nhiều lần vẫn an toàn** (idempotent), không xóa hay ghi đè dữ liệu chat hiện có.
+
+### Yêu cầu server
+
+- Apache có `mod_rewrite` bật và vhost đặt `AllowOverride All` (để `.htaccess` gốc và `upload/chat/.htaccess` có hiệu lực).
+- PHP extensions: `mysqli`, `mbstring`, `curl`, `gd`, `fileinfo` (ngoài các extension ở phần yêu cầu chung).
+- Thư mục `security/` và `upload/chat/` phải cho PHP/web server ghi được (`755`, một số hosting cần `775`; chạy bằng user web như www-data thì chown cho user đó).
+
+### Bảo mật file đính kèm
+
+- Thư mục `upload/chat/` bị **chặn truy cập trực tiếp** bằng `upload/chat/.htaccess` (`Require all denied`) — mở URL file trực tiếp sẽ nhận HTTP 403.
+- File đính kèm chỉ được tải qua endpoint có xác thực `/model/chat/attachment?message_id=N`: chủ hội thoại hoặc admin mới nhận 200, thành viên khác 403, khách 401. Đường dẫn file lấy từ DB (không nhận từ query string), kiểm tra basename + realpath containment + MIME whitelist trước khi stream.
+- **Không commit file runtime trong `upload/chat/`** (ảnh người dùng upload). `.gitignore` đã loại trừ; chỉ giữ `.gitkeep` và `.htaccess` được track.
+
+### Kiến trúc realtime
+
+- Dùng AJAX polling thuần (tin nhắn mỗi ~4 giây, badge chưa đọc mỗi ~10 giây) — tương thích hosting chia sẻ/cPanel.
+- **Không cần WebSocket, NodeJS hay Redis.**

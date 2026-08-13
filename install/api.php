@@ -8,6 +8,7 @@
  *  - install     : cài đặt đầy đủ (bước 3).
  *
  * Không bao giờ trả password trong response. Không log password.
+ * CSRF thất bại trả HTTP 419 (Authentication Timeout) bằng status line đầy đủ.
  */
 
 require_once __DIR__ . '/bootstrap.php';
@@ -18,12 +19,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     installer_json(false, 'Phương thức không được hỗ trợ.', [], 405);
 }
 
-// CSRF bắt buộc cho mọi hành động thay đổi trạng thái.
+// CSRF bắt buộc cho mọi hành động thay đổi trạng thái. Trả đúng HTTP 419.
 $token = $_POST['csrf_token'] ?? '';
 if (!installer_csrf_ok($token)) {
-    // Dùng 403 (chuẩn HTTP) thay cho 419 — Apache 2.4 rewrite status code không
-    // chuẩn (không có reason phrase) thành 500.
-    installer_json(false, 'Phiên làm việc không hợp lệ (CSRF). Vui lòng tải lại trang.', [], 403);
+    installer_json(false, 'Phiên làm việc không hợp lệ (CSRF). Vui lòng tải lại trang.', [], 419);
 }
 
 $action = (string) ($_POST['action'] ?? '');
@@ -158,7 +157,7 @@ function installer_handle_install()
 
     try {
         // Re-check sau khi đã giữ lock: có thể tiến trình kia vừa cài xong.
-        if (isApplicationInstalled()) {
+        if (installer_state_fresh() === 'installed') {
             installer_json(false, 'Website vừa được cài đặt xong. Không cần cài lại.', [], 409);
         }
 
@@ -168,6 +167,18 @@ function installer_handle_install()
             installer_json(false, $err, [], 422);
         }
 
+        /*
+         * Recovery journal: nếu lần trước bị kill giữa import, journal ghi nhận
+         * chính xác các bảng installer đã tạo vào database này. Retry chỉ dọn
+         * các bảng do journal ghi nhận — tuyệt đối không DROP bảng tồn tại
+         * trước lần cài. Database có bảng ngoại lai vẫn bị từ chối.
+         */
+        $journal = installer_journal_read();
+        if ($journal !== null && $journal['database'] === (string) $db['database']) {
+            installer_rollback_created($mysqli, array_fill_keys($journal['created_tables'], true));
+            installer_journal_clear();
+        }
+
         // Re-check database trống (chống race với một tiến trình khác).
         $tables = installer_list_tables($mysqli);
         if (!empty(installer_foreign_tables($tables))) {
@@ -175,32 +186,47 @@ function installer_handle_install()
             installer_json(false, 'Database đã có dữ liệu, không thể cài mới để tránh mất dữ liệu.', [], 409);
         }
 
+        // Ghi journal TRƯỚC khi chạy DDL đầu tiên: nếu tiến trình bị kill ngay
+        // sau đó, lần chạy tiếp theo vẫn nhận diện được đây là lần cài dở.
+        if (!installer_journal_start((string) $db['database'])) {
+            mysqli_close($mysqli);
+            installer_json(false, 'Không ghi được journal phục hồi trong thư mục storage. Kiểm tra quyền ghi.', [], 500);
+        }
+
         $created = [];
         // 1) Import base SQL.
         if (!installer_import_sql($mysqli, APP_ROOT . '/shoprobloxv4 (2).sql', $created, $err)) {
+            installer_journal_add_created($created);
             installer_rollback_created($mysqli, $created);
+            installer_journal_clear();
             mysqli_close($mysqli);
             installer_json(false, 'Import database gốc thất bại. ' . $err, [], 500);
         }
         // 2) Import migration chat-box.
         if (!installer_import_sql($mysqli, APP_ROOT . '/database/migrations/20260812_chat_box.sql', $created, $err)) {
+            installer_journal_add_created($created);
             installer_rollback_created($mysqli, $created);
+            installer_journal_clear();
             mysqli_close($mysqli);
             installer_json(false, 'Import migration chat thất bại. ' . $err, [], 500);
         }
+        // Cập nhật journal với danh sách bảng đã tạo (phòng trường hợp bị kill
+        // sau đây — ví dụ ngay trước bước tạo admin).
+        installer_journal_add_created($created);
 
         // 3) Tạo/cập nhật admin.
         if (!installer_upsert_admin($mysqli, $admin, $err)) {
             installer_rollback_created($mysqli, $created);
+            installer_journal_clear();
             mysqli_close($mysqli);
             installer_json(false, 'Không tạo được tài khoản quản trị. ' . $err, [], 500);
         }
 
-        // 4) Xác minh bảng quan trọng.
-        $required = ['users', 'options', 'accounts', 'chat_conversations', 'chat_messages'];
-        foreach ($required as $t) {
+        // 4) Xác minh FULL schema (tất cả bảng bắt buộc của phiên bản hiện tại).
+        foreach (installer_full_tables() as $t) {
             if (!installer_table_exists($mysqli, $t)) {
                 installer_rollback_created($mysqli, $created);
+                installer_journal_clear();
                 mysqli_close($mysqli);
                 installer_json(false, 'Thiếu bảng bắt buộc sau khi import: ' . $t, [], 500);
             }
@@ -209,6 +235,7 @@ function installer_handle_install()
         // 5) Xác minh admin đăng nhập được theo logic hiện tại (SHA1).
         if (!installer_verify_admin_login($mysqli, $admin)) {
             installer_rollback_created($mysqli, $created);
+            installer_journal_clear();
             mysqli_close($mysqli);
             installer_json(false, 'Không xác minh được tài khoản quản trị sau khi tạo.', [], 500);
         }
@@ -216,18 +243,23 @@ function installer_handle_install()
         // 6) Ghi cấu hình database (atomic). Nếu thất bại thì rollback DB, không báo thành công.
         if (!installer_write_config($db, $err)) {
             installer_rollback_created($mysqli, $created);
+            installer_journal_clear();
             mysqli_close($mysqli);
             installer_json(false, $err, [], 500);
         }
 
-        // 7) Tạo marker cài đặt hoàn tất — bước cuối cùng.
+        // 7) Tạo marker cài đặt hoàn tất — bước cuối cùng. Nếu thất bại thì
+        // rollback DB + xoá config, KHÔNG để lại installed.lock dở dang.
         if (!installer_write_lock($mysqli)) {
             installer_rollback_created($mysqli, $created);
             @unlink(installer_config_path());
+            installer_journal_clear();
             mysqli_close($mysqli);
             installer_json(false, 'Không tạo được dấu hiệu cài đặt (installed.lock). Kiểm tra quyền thư mục storage.', [], 500);
         }
 
+        // Cài đặt thành công: xoá journal phục hồi.
+        installer_journal_clear();
         mysqli_close($mysqli);
 
         // Làm mới phiên cài đặt để tránh dùng lại dữ liệu nhạy cảm trong session.
@@ -239,6 +271,21 @@ function installer_handle_install()
         flock($lock, LOCK_UN);
         fclose($lock);
     }
+}
+
+/**
+ * Tính lại trạng thái cài đặt, bỏ qua cache trong-request.
+ * Dùng sau khi đã giữ mutex để tránh quyết định dựa trên cache cũ.
+ */
+function installer_state_fresh()
+{
+    // isApplicationInstalled() cache trong-request; ở đây mutex đảm bảo chỉ một
+    // tiến trình cài, và trạng thái có thể đã thay đổi từ request trước. Gọi
+    // trực tiếp các kiểm tra cốt lõi thay vì cache.
+    if (is_file(installer_lock_path())) {
+        return 'installed';
+    }
+    return installer_state();
 }
 
 /* ------------------------------------------------------------------------ */
@@ -298,8 +345,8 @@ function installer_foreign_tables(array $tables)
  * Tạo mới hoặc cập nhật tài khoản admin. Dùng prepared statement.
  * Tương thích login hiện tại (SHA1). Không ghi plaintext password đi đâu.
  *
- * Base SQL có bootstrap: username=admin, password='!'. Ta cập nhật row đó (nếu có),
- * nếu không thì tạo admin mới. Không tin role từ client.
+ * Base SQL có bootstrap: username=admin, password='!' (PLAINTEXT trong dump).
+ * Ta cập nhật row đó (nếu có), nếu không thì tạo admin mới. Không tin role từ client.
  */
 function installer_upsert_admin($mysqli, array $admin, &$err = '')
 {

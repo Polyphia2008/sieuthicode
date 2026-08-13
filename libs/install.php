@@ -4,7 +4,22 @@
  *
  * Không chứa credential, không in mật khẩu, không hotlink tài nguyên ngoài.
  * Mọi hàm nhận credential dạng giá trị (không ghép SQL).
+ *
+ * Nguyên tắc bảo mật chính:
+ *  - installed.lock là tín hiệu "đã cài" mạnh nhất.
+ *  - Nếu đã có cấu hình DB rõ ràng (config.local.php / env / config.php đã sửa)
+ *    nhưng DB tạm mất kết nối => website vẫn được xem là ĐÃ CẤU HÌNH, installer
+ *    bị khoá, request thường chỉ thấy lỗi database. Không bao giờ mở lại
+ *    installer để người lạ trỏ website sang database khác.
+ *  - installed.lock chỉ được ghi khi FULL schema đã được xác minh và không có
+ *    tiến trình cài đặt nào đang giữ mutex.
  */
+
+// Fail-closed: không cho phép gọi trực tiếp file này qua web.
+if (realpath((string) ($_SERVER['SCRIPT_FILENAME'] ?? '')) === __FILE__) {
+    header('HTTP/1.1 403 Forbidden', true, 403);
+    exit('Forbidden');
+}
 
 if (!defined('APP_ROOT')) {
     define('APP_ROOT', dirname(__DIR__));
@@ -28,51 +43,97 @@ function installer_mutex_path()
     return APP_ROOT . '/storage/.installing.lock';
 }
 
-/**
- * Kiểm tra website đã được cài đặt hay chưa.
- *
- * Quy tắc:
- *  - Nếu đã có installed.lock => đã cài. Tuyệt đối không mở lại installer
- *    kể cả khi DB tạm mất kết nối.
- *  - Nếu chưa có lock nhưng đã có cấu hình DB (config.local.php hoặc env) và
- *    kết nối được và có schema hợp lệ (users + options) => website cũ đã cài,
- *    không redirect sang installer, không import lại, không đổi dữ liệu.
- *  - Ngược lại => chưa cài.
- */
-function isApplicationInstalled()
+/** Đường dẫn journal phục hồi sau khi tiến trình cài đặt bị kill giữa chừng. */
+function installer_journal_path()
 {
-    if (is_file(installer_lock_path())) {
-        return true;
-    }
-
-    // Tương thích website cũ đã cài nhưng chưa có lock.
-    $cfg = installer_existing_db_config();
-    if ($cfg === null) {
-        return false;
-    }
-    $mysqli = installer_try_connect($cfg, $err);
-    if (!$mysqli) {
-        // Cấu hình tồn tại nhưng không kết nối được: coi như CHƯA có schema hợp lệ,
-        // nhưng vẫn không được tự ý mở lại installer nếu lock đã có (đã xử lý ở trên).
-        return false;
-    }
-    $hasSchema = installer_has_base_schema($mysqli);
-    if ($hasSchema) {
-        // Tạo marker an toàn (không bắt buộc, không làm hỏng website nếu thất bại).
-        @installer_write_lock($mysqli);
-        mysqli_close($mysqli);
-        return true;
-    }
-    mysqli_close($mysqli);
-    return false;
+    return APP_ROOT . '/storage/install.journal.json';
 }
 
+/* ------------------------------------------------------------------------ *
+ * Trạng thái cài đặt
+ * ------------------------------------------------------------------------ */
+
 /**
- * Lấy cấu hình DB hiện có (nếu có): ưu tiên config.local.php, sau đó biến môi trường.
- * Trả về null nếu không có cấu hình nào được thiết lập rõ ràng.
+ * Xác định trạng thái cài đặt của website.
+ *
+ * Trả về một trong:
+ *  - 'installed'   : đã cài (có lock, hoặc config hợp lệ + core schema tồn tại).
+ *  - 'offline'     : ĐÃ có cấu hình DB rõ ràng nhưng không kết nối được.
+ *                    Website vẫn được xem là đã cấu hình — installer phải khoá,
+ *                    request thường chỉ hiển thị lỗi database.
+ *  - 'uninstalled' : chưa có cấu hình rõ ràng, hoặc DB kết nối được nhưng trống.
+ *
+ * Kết quả được cache trong suốt request để tránh kết nối DB nhiều lần.
+ */
+function installer_state()
+{
+    static $state = null;
+    if ($state !== null) {
+        return $state;
+    }
+
+    // 1) Lock file là tín hiệu mạnh nhất.
+    if (is_file(installer_lock_path())) {
+        return $state = 'installed';
+    }
+
+    // 2) Cấu hình DB rõ ràng: config.local.php > env > config.php đã sửa tay.
+    $cfg = installer_existing_db_config();
+    if ($cfg === null) {
+        return $state = 'uninstalled';
+    }
+
+    // 3) Có cấu hình nhưng không kết nối được => DB tạm offline.
+    //    TUYỆT ĐỐI không mở lại installer trong trường hợp này.
+    $mysqli = installer_try_connect($cfg, $err);
+    if (!$mysqli) {
+        return $state = 'offline';
+    }
+
+    // 4) Kết nối được: website cũ đã cài nếu có đầy đủ core schema.
+    if (installer_has_core_schema($mysqli)) {
+        // Chỉ ghi lock khi FULL schema đã xác minh VÀ không có tiến trình
+        // cài đặt đang giữ mutex (tránh race: request đồng thời trong lúc
+        // import thấy đủ bảng rồi tự đánh dấu hoàn tất quá sớm).
+        if (installer_has_full_schema($mysqli) && !installer_mutex_is_held()) {
+            @installer_write_lock($mysqli);
+        }
+        mysqli_close($mysqli);
+        return $state = 'installed';
+    }
+
+    mysqli_close($mysqli);
+    return $state = 'uninstalled';
+}
+
+/** Website đã được cài đặt (hoặc đã cấu hình nhưng DB tạm offline)? */
+function isApplicationInstalled()
+{
+    $state = installer_state();
+    // 'offline' vẫn trả true: website đã được cấu hình, installer phải khoá.
+    return $state === 'installed' || $state === 'offline';
+}
+
+/** Website đã cấu hình nhưng database tạm mất kết nối? */
+function installer_is_offline()
+{
+    return installer_state() === 'offline';
+}
+
+/* ------------------------------------------------------------------------ *
+ * Phát hiện cấu hình database hiện có
+ * ------------------------------------------------------------------------ */
+
+/**
+ * Lấy cấu hình DB hiện có (nếu có). Thứ tự ưu tiên:
+ *   1. config.local.php (do installer ghi).
+ *   2. Biến môi trường DB_*.
+ *   3. config.php đã được sửa tay (legacy — README cũ yêu cầu sửa trực tiếp).
+ * Trả về null nếu không có cấu hình rõ ràng nào (chỉ còn default mẫu).
  */
 function installer_existing_db_config()
 {
+    // 1) config.local.php
     $cfgFile = installer_config_path();
     if (is_file($cfgFile)) {
         $data = @include $cfgFile;
@@ -90,6 +151,7 @@ function installer_existing_db_config()
         }
     }
 
+    // 2) Biến môi trường (vhost SetEnv / cPanel / Docker).
     $envDb = getenv('DB_DATABASE');
     if ($envDb !== false && $envDb !== '') {
         return [
@@ -100,8 +162,94 @@ function installer_existing_db_config()
             'database' => (string) $envDb,
         ];
     }
-    return null;
+
+    // 3) Legacy: config.php đã sửa tay (khác giá trị mẫu mặc định).
+    return installer_legacy_config_from_config_php();
 }
+
+/**
+ * Đọc credential literal từ config.php của website cũ.
+ * Chỉ trả về cấu hình khi người dùng đã sửa ít nhất một giá trị khác mẫu
+ * mặc định của source — nếu không, coi như chưa cấu hình (installer mở).
+ * Hàm này CHỈ ĐỌC, tuyệt đối không ghi/sửa config.php.
+ */
+function installer_legacy_config_from_config_php()
+{
+    $file = APP_ROOT . '/config.php';
+    if (!is_file($file) || !is_readable($file)) {
+        return null;
+    }
+    $src = @file_get_contents($file);
+    if ($src === false) {
+        return null;
+    }
+    $vals = installer_parse_legacy_config_source($src);
+
+    $host = $vals['DB_HOST'] ?? '';
+    $port = (int) ($vals['DB_PORT'] ?? 3306);
+    $user = $vals['DB_USERNAME'] ?? '';
+    $db = $vals['DB_DATABASE'] ?? '';
+    $pass = $vals['DB_PASSWORD'] ?? '';
+
+    if ($db === '' || !installer_valid_db_name($db)) {
+        return null;
+    }
+
+    // Giá trị mẫu mặc định của source gốc => coi như CHƯA cấu hình.
+    if ($host === 'localhost' && $port === 3306 && $user === 'root'
+        && $db === 'shopnickv5' && $pass === '') {
+        return null;
+    }
+
+    return [
+        'host' => $host !== '' ? $host : 'localhost',
+        'port' => $port > 0 ? $port : 3306,
+        'username' => $user,
+        'password' => $pass,
+        'database' => $db,
+    ];
+}
+
+/**
+ * Tách các hằng DB_* dạng literal ra khỏi source config.php (hỗ trợ test).
+ * Chấp nhận cả dạng define('DB_HOST','localhost') lẫn define("DB_PORT", 3306).
+ */
+function installer_parse_legacy_config_source($src)
+{
+    $out = [];
+    foreach (['DB_HOST', 'DB_PORT', 'DB_USERNAME', 'DB_DATABASE', 'DB_PASSWORD'] as $const) {
+        // Dạng chuỗi: define('DB_HOST', 'localhost');
+        if (preg_match(
+            "/define\\(\\s*['\"]" . $const . "['\"]\\s*,\\s*'((?:[^'\\\\]|\\\\.)*)'\\s*\\)/",
+            $src,
+            $m
+        )) {
+            $out[$const] = stripcslashes($m[1]);
+            continue;
+        }
+        if (preg_match(
+            '/define\\(\\s*[\'"]' . $const . '[\'"]\\s*,\\s*"((?:[^"\\\\]|\\\\.)*)"\\s*\\)/',
+            $src,
+            $m
+        )) {
+            $out[$const] = stripcslashes($m[1]);
+            continue;
+        }
+        // Dạng số: define('DB_PORT', 3306);
+        if (preg_match(
+            "/define\\(\\s*['\"]" . $const . "['\"]\\s*,\\s*(\\d+)\\s*\\)/",
+            $src,
+            $m
+        )) {
+            $out[$const] = (int) $m[1];
+        }
+    }
+    return $out;
+}
+
+/* ------------------------------------------------------------------------ *
+ * Kết nối và kiểm tra schema
+ * ------------------------------------------------------------------------ */
 
 /**
  * Thử kết nối MySQL bằng mysqli với timeout hợp lý.
@@ -155,10 +303,49 @@ function installer_valid_db_name($name)
         && preg_match('/^[A-Za-z0-9_$-]+$/', $name) === 1;
 }
 
-/** Kiểm tra schema nền (users + options) — dấu hiệu website cũ đã cài. */
-function installer_has_base_schema($mysqli)
+/**
+ * Core schema — tập bảng tối thiểu chứng tỏ website đã được cài.
+ * Nhiều hơn đáng kể so với chỉ users+options để tránh nhận nhầm database
+ * đang được import dở (bảng users nằm gần cuối file dump).
+ */
+function installer_core_tables()
 {
-    return installer_table_exists($mysqli, 'users') && installer_table_exists($mysqli, 'options');
+    return ['users', 'options', 'accounts', 'categories', 'orders'];
+}
+
+/**
+ * Full schema — toàn bộ bảng mà phiên bản code hiện tại yêu cầu,
+ * bao gồm bảng chat (được tạo bởi migration cuối cùng của installer).
+ * installed.lock CHỈ được ghi khi toàn bộ các bảng này tồn tại.
+ */
+function installer_full_tables()
+{
+    return [
+        'users', 'options', 'accounts', 'categories', 'orders',
+        'chat_conversations', 'chat_messages',
+    ];
+}
+
+/** Kiểm tra core schema — dấu hiệu website cũ đã cài. */
+function installer_has_core_schema($mysqli)
+{
+    foreach (installer_core_tables() as $t) {
+        if (!installer_table_exists($mysqli, $t)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/** Kiểm tra full schema — điều kiện bắt buộc để ghi installed.lock. */
+function installer_has_full_schema($mysqli)
+{
+    foreach (installer_full_tables() as $t) {
+        if (!installer_table_exists($mysqli, $t)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 /** Kiểm tra một bảng có tồn tại trong database hiện tại không. */
@@ -209,6 +396,139 @@ function installer_check_privileges($mysqli, &$err = '')
     }
     return true;
 }
+
+/* ------------------------------------------------------------------------ *
+ * Mutex chống cài đặt đồng thời
+ * ------------------------------------------------------------------------ */
+
+/**
+ * Kiểm tra có tiến trình cài đặt nào đang giữ mutex không.
+ * Không phá lock: thử lấy non-blocking rồi trả lại ngay.
+ */
+function installer_mutex_is_held()
+{
+    $path = installer_mutex_path();
+    if (!is_file($path)) {
+        return false;
+    }
+    $fh = @fopen($path, 'c');
+    if (!$fh) {
+        // Không đọc/ghi được file lock — thận trọng: coi như đang bận.
+        return true;
+    }
+    $got = flock($fh, LOCK_EX | LOCK_NB);
+    if ($got) {
+        flock($fh, LOCK_UN);
+    }
+    fclose($fh);
+    return !$got;
+}
+
+/* ------------------------------------------------------------------------ *
+ * Recovery journal (phục hồi sau hard interruption)
+ * ------------------------------------------------------------------------ */
+
+/**
+ * Đọc journal của lần cài đặt dở (nếu có).
+ * Trả về mảng ['database'=>..., 'started_at'=>..., 'created_tables'=>[...]]
+ * hoặc null nếu không có / file hỏng.
+ * Journal KHÔNG bao giờ chứa DB password hay admin password.
+ */
+function installer_journal_read()
+{
+    $file = installer_journal_path();
+    if (!is_file($file)) {
+        return null;
+    }
+    $raw = @file_get_contents($file);
+    if ($raw === false || $raw === '') {
+        return null;
+    }
+    $data = json_decode($raw, true);
+    if (!is_array($data)
+        || empty($data['database']) || !is_string($data['database'])
+        || !isset($data['created_tables']) || !is_array($data['created_tables'])
+    ) {
+        return null;
+    }
+    // Chỉ giữ tên bảng hợp lệ.
+    $created = [];
+    foreach ($data['created_tables'] as $t) {
+        $t = preg_replace('/[^A-Za-z0-9_]/', '', (string) $t);
+        if ($t !== '') {
+            $created[] = $t;
+        }
+    }
+    return [
+        'database' => (string) $data['database'],
+        'started_at' => (string) ($data['started_at'] ?? ''),
+        'created_tables' => array_values(array_unique($created)),
+    ];
+}
+
+/**
+ * Ghi journal TRƯỚC khi chạy DDL. Ghi nhận database đích (đã được xác minh
+ * trống) để lần chạy sau nhận diện đây là lần cài dở do installer tạo.
+ */
+function installer_journal_start($database)
+{
+    $payload = [
+        'version' => 1,
+        'database' => (string) $database,
+        'started_at' => date('c'),
+        'initial_tables' => [],
+        'created_tables' => [],
+    ];
+    return installer_journal_write($payload);
+}
+
+/** Bổ sung các bảng vừa được installer tạo vào journal (atomic). */
+function installer_journal_add_created(array $createdTables)
+{
+    $journal = installer_journal_read();
+    if ($journal === null) {
+        return false;
+    }
+    $merged = array_unique(array_merge($journal['created_tables'], array_keys($createdTables)));
+    $payload = [
+        'version' => 1,
+        'database' => $journal['database'],
+        'started_at' => $journal['started_at'] !== '' ? $journal['started_at'] : date('c'),
+        'initial_tables' => [],
+        'created_tables' => array_values($merged),
+    ];
+    return installer_journal_write($payload);
+}
+
+/** Xoá journal sau khi cài đặt hoàn tất (hoặc rollback sạch). */
+function installer_journal_clear()
+{
+    @unlink(installer_journal_path());
+}
+
+/** Ghi journal atomic (temp + LOCK_EX + rename, quyền 0600). */
+function installer_journal_write(array $payload)
+{
+    $dir = dirname(installer_journal_path());
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0755, true);
+    }
+    $tmp = installer_journal_path() . '.tmp.' . bin2hex(random_bytes(6));
+    if (@file_put_contents($tmp, json_encode($payload, JSON_PRETTY_PRINT), LOCK_EX) === false) {
+        @unlink($tmp);
+        return false;
+    }
+    @chmod($tmp, 0600);
+    if (!@rename($tmp, installer_journal_path())) {
+        @unlink($tmp);
+        return false;
+    }
+    return true;
+}
+
+/* ------------------------------------------------------------------------ *
+ * Import SQL an toàn
+ * ------------------------------------------------------------------------ */
 
 /**
  * Bộ tách câu lệnh SQL an toàn cho file phpMyAdmin.
@@ -418,6 +738,10 @@ function installer_rollback_created($mysqli, array $createdTables)
     @mysqli_query($mysqli, 'SET FOREIGN_KEY_CHECKS=1');
 }
 
+/* ------------------------------------------------------------------------ *
+ * CSRF / rate limit / session / headers
+ * ------------------------------------------------------------------------ */
+
 /** Sinh CSRF token cho installer session. */
 function installer_csrf_token()
 {
@@ -456,6 +780,10 @@ function installer_rate_ok($action, $maxAttempts, $windowSeconds)
     $_SESSION[$key][] = $now;
     return true;
 }
+
+/* ------------------------------------------------------------------------ *
+ * Ghi file runtime an toàn
+ * ------------------------------------------------------------------------ */
 
 /**
  * Ghi config.local.php an toàn (var_export + temp file + LOCK_EX + atomic rename).
@@ -515,10 +843,46 @@ function installer_write_lock($mysqli = null)
     return true;
 }
 
+/* ------------------------------------------------------------------------ *
+ * HTTP response
+ * ------------------------------------------------------------------------ */
+
+/**
+ * Gửi status line đầy đủ, tương thích Apache/mod_php.
+ * http_response_code() đơn lẻ với mã không chuẩn (vd 419) có thể bị
+ * Apache 2.4 rewrite thành 500 vì thiếu reason phrase đã đăng ký.
+ */
+function installer_status_header($code)
+{
+    static $phrases = [
+        200 => 'OK',
+        302 => 'Found',
+        400 => 'Bad Request',
+        403 => 'Forbidden',
+        405 => 'Method Not Allowed',
+        409 => 'Conflict',
+        419 => 'Authentication Timeout',
+        422 => 'Unprocessable Entity',
+        429 => 'Too Many Requests',
+        500 => 'Internal Server Error',
+        503 => 'Service Unavailable',
+    ];
+    $code = (int) $code;
+    $protocol = (string) ($_SERVER['SERVER_PROTOCOL'] ?? 'HTTP/1.1');
+    if ($protocol !== 'HTTP/1.1' && $protocol !== 'HTTP/1.0') {
+        $protocol = 'HTTP/1.1';
+    }
+    if (isset($phrases[$code])) {
+        header($protocol . ' ' . $code . ' ' . $phrases[$code], true, $code);
+    } else {
+        http_response_code($code);
+    }
+}
+
 /** Trả JSON response cho API installer và dừng. Không bao giờ echo credential. */
 function installer_json($ok, $message, $extra = [], $httpCode = 200)
 {
-    http_response_code($httpCode);
+    installer_status_header($httpCode);
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store, no-cache, must-revalidate');
     header('X-Content-Type-Options: nosniff');

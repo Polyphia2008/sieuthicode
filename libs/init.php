@@ -7,15 +7,35 @@ if (!defined('APP_ROOT')) {
 
 require_once APP_ROOT . '/libs/install.php';
 
-// Redirect every public request to the installer until the site is installed.
-// This runs before RSA key generation and any DB access so an uninstalled site
-// never fatals. Skipped for the installer itself so the wizard/API can run.
+// Điều hướng trước khi tạo RSA key / kết nối DB, để website chưa cài không fatal.
+//  - 'uninstalled'           -> redirect mọi request công khai sang /install/.
+//  - 'installed'             -> hoạt động bình thường.
+//  - 'offline' (có config nhưng DB mất kết nối) -> KHÔNG mở lại installer,
+//    chỉ hiển thị lỗi database thông thường (bảo mật: không cho cấu hình lại).
 $__requestPath = (string) parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
-if (strpos($__requestPath, '/install') !== 0 && !isApplicationInstalled()) {
-    header('Location: /install/', true, 302);
-    exit;
+if (strpos($__requestPath, '/install') !== 0) {
+    $__state = installer_state();
+    if ($__state === 'uninstalled') {
+        header('Location: /install/', true, 302);
+        exit;
+    }
+    if ($__state === 'offline') {
+        installer_status_header(503);
+        header('Content-Type: text/html; charset=utf-8');
+        header('Retry-After: 60');
+        exit('<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8">'
+            . '<meta name="viewport" content="width=device-width, initial-scale=1">'
+            . '<title>Website tạm thời gián đoạn</title></head><body '
+            . 'style="font-family:system-ui,Arial,sans-serif;display:flex;align-items:center;'
+            . 'justify-content:center;min-height:100vh;margin:0;background:#0f1420;color:#e6e9f2">'
+            . '<div style="max-width:480px;padding:24px;text-align:center">'
+            . '<h1 style="font-size:20px">Website tạm thời gián đoạn</h1>'
+            . '<p style="color:#8b93ad;font-size:14px;line-height:1.6">Không thể kết nối cơ sở dữ liệu. '
+            . 'Vui lòng thử lại sau ít phút. Nếu bạn là quản trị viên, hãy kiểm tra dịch vụ MySQL '
+            . 'và thông tin kết nối database.</p></div></body></html>');
+    }
 }
-unset($__requestPath);
+unset($__requestPath, $__state);
 
 if (!function_exists('ensureLocalRsaKeys')) {
     function ensureLocalRsaKeys($root)

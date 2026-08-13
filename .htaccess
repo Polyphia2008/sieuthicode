@@ -10,8 +10,11 @@ RewriteCond %{THE_REQUEST} \s/+((classes|libs|models|security|vendor)/) [NC]
 RewriteRule ^ - [F,L]
 RewriteCond %{THE_REQUEST} \s/+(config\.php|config\.local\.php|composer\.(json|lock)|version\.php|update\.php|[^?\s]*\.sql)([?\s]) [NC]
 RewriteRule ^ - [F,L]
-# Runtime state directory (installed.lock, mutex) is never served directly.
+# Runtime state directory (installed.lock, mutex, journal) is never served directly.
 RewriteCond %{THE_REQUEST} \s/+storage/ [NC]
+RewriteRule ^ - [F,L]
+# Internal installer includes are never served directly (wizard + API stay public).
+RewriteCond %{THE_REQUEST} \s/+install/bootstrap\.php([?\s]) [NC]
 RewriteRule ^ - [F,L]
 
 # Installer wizard (self-locks once the site is installed).

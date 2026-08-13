@@ -159,8 +159,18 @@ foreach (installer_split_sql($plannedSql) as $st) {
 ok(count($planned) === 3
     && isset($planned['accounts'], $planned['users'], $planned['chat_conversations']),
     'planned_tables parser handles comment-prefixed CREATE TABLE');
-// Base dump thật phải cho >= 46 bảng (46 base + 2 chat migration = 48).
+// Base dump thật phải cho đủ 48 bảng (46 base + 2 chat migration).
+// installer_planned_tables() đọc file từ APP_ROOT (thư mục temp trong test),
+// nên copy 2 file SQL thật vào đó trước khi gọi.
+$__repo = dirname(__DIR__);
+@mkdir(APP_ROOT . '/database/migrations', 0755, true);
+copy($__repo . '/shoprobloxv4 (2).sql', APP_ROOT . '/shoprobloxv4 (2).sql');
+copy($__repo . '/database/migrations/20260812_chat_box.sql', APP_ROOT . '/database/migrations/20260812_chat_box.sql');
 ok(count(installer_planned_tables()) === 48, 'planned_tables parses all 48 real tables');
+@unlink(APP_ROOT . '/shoprobloxv4 (2).sql');
+@unlink(APP_ROOT . '/database/migrations/20260812_chat_box.sql');
+@rmdir(APP_ROOT . '/database/migrations');
+@rmdir(APP_ROOT . '/database');
 
 /* ---- cleanup ---- */
 @unlink(APP_ROOT . '/config.php');

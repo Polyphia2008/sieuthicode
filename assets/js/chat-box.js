@@ -159,7 +159,8 @@
                     setState('ok');
                     appendMessages(messages, true);
                 }
-                applyConversationStatus(json.data.conversation.status);
+                var conv = json.data.conversation;
+                applyConversationStatus(conv && conv.status ? conv.status : 'open');
                 markRead();
             })
             .catch(function () {

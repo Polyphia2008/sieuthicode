@@ -117,7 +117,7 @@ foreach ($db->get_list('SELECT SUM(amount) as total,username FROM `top` WHERE DA
     echo rank_recharge($i);
     echo '" alt="img" class="ws-h-6"></span>
                                             <p>';
-    echo obfuscateUsername($top['Username']);
+    echo obfuscateUsername($top['username']);
     echo '</p>
                                         </div>
                                         <p class="text-white">';
@@ -187,7 +187,7 @@ echo '        </div>
                             ';
 foreach ($db->get_list('SELECT * FROM `history_buy` ORDER BY `id` DESC') as $log) {
     echo '                                <span><img alt="user icon" class="c-mr-5 icon" height="20" src="/assets/images/user.png" width="20"> <span class="username">';
-    echo obfuscateUsername($log['Username']);
+    echo obfuscateUsername($log['username']);
     echo '</span> đã mua acc #';
     echo $log['id_acc'];
     echo ' chỉ với giá ';

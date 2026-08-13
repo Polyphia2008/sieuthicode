@@ -82,18 +82,51 @@ ok(count($split2) === 2, 'splitter handles block/line comments and escapes');
 $split3 = installer_split_sql("SELECT `weird``name` FROM t; SELECT 2;");
 ok(count($split3) === 2, 'splitter handles backticks');
 
-/* ---- recovery journal round-trip ---- */
-ok(installer_journal_start('testdb') === true, 'journal start writes file');
+/* ---- recovery journal v2 round-trip (crash-safe) ---- */
+$cfgA = ['host' => 'db-a.example', 'port' => 3306, 'username' => 'user_a', 'password' => 'P@ss-A', 'database' => 'testdb'];
+$cfgB = ['host' => 'db-b.example', 'port' => 3306, 'username' => 'user_a', 'password' => 'P@ss-B', 'database' => 'testdb'];
+ok(installer_journal_fingerprint($cfgA) !== installer_journal_fingerprint($cfgB),
+    'fingerprint differs across hosts with same db name');
+$cfgA2 = $cfgA;
+$cfgA2['password'] = 'different-password';
+ok(installer_journal_fingerprint($cfgA) === installer_journal_fingerprint($cfgA2),
+    'fingerprint ignores the DB password');
+
+ok(installer_journal_start($cfgA, [], ['users', 'orders', 'chat_messages']) === true, 'journal start writes file');
 $j = installer_journal_read();
-ok(is_array($j) && $j['database'] === 'testdb' && $j['created_tables'] === [], 'journal read: empty created list');
+ok(is_array($j) && $j['ok'] === true, 'journal read: valid v2 journal');
+ok($j['database'] === 'testdb' && $j['created_tables'] === [], 'journal read: empty created list');
+ok(strlen($j['nonce']) === 32 && ctype_xdigit($j['nonce']), 'journal has random 128-bit nonce');
+ok($j['fingerprint'] === installer_journal_fingerprint($cfgA), 'journal fingerprint matches target');
+ok($j['initial_tables'] === [] && $j['planned_tables'] === ['users', 'orders', 'chat_messages'],
+    'journal stores initial + planned (allowlist) tables');
+
 installer_journal_add_created(['users' => true, 'orders' => true]);
 installer_journal_add_created(['chat_messages' => true]);
 $j2 = installer_journal_read();
-ok(in_array('users', $j2['created_tables'], true)
+ok($j2['ok'] === true
+    && in_array('users', $j2['created_tables'], true)
     && in_array('orders', $j2['created_tables'], true)
     && in_array('chat_messages', $j2['created_tables'], true), 'journal accumulates created tables');
+ok($j2['nonce'] === $j['nonce'], 'add_created keeps the same nonce');
+
 $raw = file_get_contents(installer_journal_path());
 ok(strpos($raw, 'password') === false, 'journal contains no password field');
+ok(strpos($raw, 'P@ss-A') === false, 'journal contains no DB password value');
+
+// Corrupt journal => ok=false, recovery must refuse to touch anything.
+file_put_contents(installer_journal_path(), '{broken json');
+$jc = installer_journal_read();
+ok(is_array($jc) && $jc['ok'] === false, 'corrupt journal -> ok=false (no cleanup allowed)');
+
+// Wrong version => ok=false.
+file_put_contents(installer_journal_path(), json_encode([
+    'version' => 1, 'database' => 'testdb', 'created_tables' => [],
+    'planned_tables' => [], 'initial_tables' => [],
+]));
+$jv = installer_journal_read();
+ok(is_array($jv) && $jv['ok'] === false && $jv['version'] === 1, 'wrong-version journal -> ok=false');
+
 installer_journal_clear();
 ok(installer_journal_read() === null, 'journal clear removes file');
 

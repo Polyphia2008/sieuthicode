@@ -61,6 +61,10 @@ function installer_journal_path()
  *  - 'offline'     : ĐÃ có cấu hình DB rõ ràng nhưng không kết nối được.
  *                    Website vẫn được xem là đã cấu hình — installer phải khoá,
  *                    request thường chỉ hiển thị lỗi database.
+ *  - 'installing'  : một tiến trình cài đặt khác đang giữ mutex mà chưa có
+ *                    installed.lock — database có thể đang import dở. Request
+ *                    công khai phải nhận 503 "Đang cài đặt" thay vì chạy app
+ *                    trên database dở dang, và TUYỆT ĐỐI không tạo lock sớm.
  *  - 'uninstalled' : chưa có cấu hình rõ ràng, hoặc DB kết nối được nhưng trống.
  *
  * Kết quả được cache trong suốt request để tránh kết nối DB nhiều lần.
@@ -75,6 +79,13 @@ function installer_state()
     // 1) Lock file là tín hiệu mạnh nhất.
     if (is_file(installer_lock_path())) {
         return $state = 'installed';
+    }
+
+    // 1b) Một tiến trình cài đặt khác đang chạy (giữ mutex) mà chưa có lock
+    //     => database có thể đang import dở. Báo 'installing' để caller trả
+    //     503 "Đang cài đặt"; không kết nối DB, không ghi installed.lock sớm.
+    if (installer_mutex_is_held()) {
+        return $state = 'installing';
     }
 
     // 2) Cấu hình DB rõ ràng: config.local.php > env > config.php đã sửa tay.
@@ -429,9 +440,46 @@ function installer_mutex_is_held()
  * ------------------------------------------------------------------------ */
 
 /**
+ * Phiên bản định dạng journal hiện tại. Journal có version khác bị coi là
+ * không hợp lệ: KHÔNG được dùng để cleanup (tránh DROP nhầm theo format cũ).
+ */
+define('INSTALLER_JOURNAL_VERSION', 2);
+
+/**
+ * Lọc một danh sách tên bảng: chỉ giữ tên hợp lệ ([A-Za-z0-9_]), loại trùng.
+ */
+function installer_sanitize_table_names($list)
+{
+    $out = [];
+    if (!is_array($list)) {
+        return $out;
+    }
+    foreach ($list as $t) {
+        $t = preg_replace('/[^A-Za-z0-9_]/', '', (string) $t);
+        if ($t !== '') {
+            $out[$t] = true;
+        }
+    }
+    return array_keys($out);
+}
+
+/**
  * Đọc journal của lần cài đặt dở (nếu có).
- * Trả về mảng ['database'=>..., 'started_at'=>..., 'created_tables'=>[...]]
- * hoặc null nếu không có / file hỏng.
+ *
+ * Trả về mảng:
+ *  [
+ *    'ok'            => bool,   // false = file hỏng / sai version (cấm cleanup)
+ *    'version'       => int,
+ *    'nonce'         => string, // id ngẫu nhiên của lần cài đặt
+ *    'fingerprint'   => string, // hash(host+port+username+database), KHÔNG password
+ *    'database'      => string,
+ *    'initial_tables'=> array,  // bảng tồn tại TRƯỚC khi cài (bằng chứng DB trống)
+ *    'planned_tables'=> array,  // allowlist: bảng installer dự kiến tạo
+ *    'created_tables'=> array,  // bảng đã xác nhận tạo thành công
+ *    'started_at'    => string,
+ *  ]
+ * hoặc null nếu không có file journal.
+ *
  * Journal KHÔNG bao giờ chứa DB password hay admin password.
  */
 function installer_journal_read()
@@ -441,63 +489,197 @@ function installer_journal_read()
         return null;
     }
     $raw = @file_get_contents($file);
-    if ($raw === false || $raw === '') {
-        return null;
-    }
-    $data = json_decode($raw, true);
+    $data = ($raw !== false && $raw !== '') ? json_decode($raw, true) : null;
+
+    // Journal không đọc được / JSON hỏng => trả về bản ghi "hỏng" để caller
+    // dừng an toàn (KHÔNG cleanup), thay vì âm thầm coi như không có journal.
     if (!is_array($data)
         || empty($data['database']) || !is_string($data['database'])
         || !isset($data['created_tables']) || !is_array($data['created_tables'])
+        || !isset($data['planned_tables']) || !is_array($data['planned_tables'])
+        || !isset($data['initial_tables']) || !is_array($data['initial_tables'])
     ) {
-        return null;
+        return [
+            'ok' => false,
+            'version' => 0,
+            'nonce' => '',
+            'fingerprint' => '',
+            'database' => is_array($data) && isset($data['database']) && is_string($data['database'])
+                ? (string) $data['database'] : '',
+            'initial_tables' => [],
+            'planned_tables' => [],
+            'created_tables' => [],
+            'started_at' => is_array($data) && isset($data['started_at'])
+                ? (string) $data['started_at'] : '',
+        ];
     }
-    // Chỉ giữ tên bảng hợp lệ.
-    $created = [];
-    foreach ($data['created_tables'] as $t) {
-        $t = preg_replace('/[^A-Za-z0-9_]/', '', (string) $t);
-        if ($t !== '') {
-            $created[] = $t;
-        }
-    }
+
+    $version = (int) ($data['version'] ?? 0);
     return [
+        'ok' => $version === INSTALLER_JOURNAL_VERSION,
+        'version' => $version,
+        'nonce' => (string) ($data['nonce'] ?? ''),
+        'fingerprint' => (string) ($data['fingerprint'] ?? ''),
         'database' => (string) $data['database'],
+        'initial_tables' => installer_sanitize_table_names($data['initial_tables']),
+        'planned_tables' => installer_sanitize_table_names($data['planned_tables']),
+        'created_tables' => installer_sanitize_table_names($data['created_tables']),
         'started_at' => (string) ($data['started_at'] ?? ''),
-        'created_tables' => array_values(array_unique($created)),
     ];
 }
 
 /**
- * Ghi journal TRƯỚC khi chạy DDL. Ghi nhận database đích (đã được xác minh
- * trống) để lần chạy sau nhận diện đây là lần cài dở do installer tạo.
+ * Fingerprint nhận diện đích cài đặt: hash(host + port + username + database).
+ * KHÔNG bao giờ đưa password vào fingerprint. Retry chỉ được cleanup khi
+ * fingerprint của kết nối hiện tại khớp journal — hai server khác nhau có thể
+ * có cùng tên database nên không được chỉ so sánh tên database.
  */
-function installer_journal_start($database)
+function installer_journal_fingerprint(array $cfg)
+{
+    return hash('sha256', implode('|', [
+        'stc-install-target',
+        strtolower(trim((string) ($cfg['host'] ?? 'localhost'))),
+        (string) (int) ($cfg['port'] ?? 3306),
+        (string) ($cfg['username'] ?? ''),
+        (string) ($cfg['database'] ?? ''),
+    ]));
+}
+
+/**
+ * Phân tích danh sách bảng mà các file SQL của installer sẽ tạo
+ * (base dump + migration chat). Đây là allowlist dùng để giới hạn cleanup:
+ * retry chỉ được DROP các bảng thuộc danh sách này.
+ */
+function installer_planned_tables()
+{
+    $planned = [];
+    $files = [
+        APP_ROOT . '/shoprobloxv4 (2).sql',
+        APP_ROOT . '/database/migrations/20260812_chat_box.sql',
+    ];
+    foreach ($files as $file) {
+        if (!is_file($file) || !is_readable($file)) {
+            continue;
+        }
+        $sql = @file_get_contents($file);
+        if ($sql === false) {
+            continue;
+        }
+        foreach (installer_split_sql($sql) as $stmt) {
+            if (preg_match('/^\s*CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?`?([A-Za-z0-9_]+)`?/i', $stmt, $m)) {
+                $planned[$m[1]] = true;
+            }
+        }
+    }
+    return array_keys($planned);
+}
+
+/**
+ * Ghi journal TRƯỚC khi chạy DDL bất kỳ.
+ *
+ * Ghi nhận: version, nonce ngẫu nhiên, fingerprint đích (không secret),
+ * database, initial_tables (bằng chứng DB trống lúc bắt đầu — nếu DB không
+ * trống thì caller phải từ chối cài TRƯỚC khi gọi hàm này), planned_tables
+ * (allowlist cleanup) và started_at.
+ */
+function installer_journal_start(array $cfg, array $initialTables, array $plannedTables)
 {
     $payload = [
-        'version' => 1,
-        'database' => (string) $database,
-        'started_at' => date('c'),
-        'initial_tables' => [],
+        'version' => INSTALLER_JOURNAL_VERSION,
+        'nonce' => bin2hex(random_bytes(16)),
+        'fingerprint' => installer_journal_fingerprint($cfg),
+        'database' => (string) ($cfg['database'] ?? ''),
+        'initial_tables' => array_values(installer_sanitize_table_names($initialTables)),
+        'planned_tables' => array_values(installer_sanitize_table_names($plannedTables)),
         'created_tables' => [],
+        'started_at' => date('c'),
     ];
     return installer_journal_write($payload);
 }
 
-/** Bổ sung các bảng vừa được installer tạo vào journal (atomic). */
+/** Bổ sung các bảng vừa được installer tạo vào journal (atomic, giữ nguyên các trường khác). */
 function installer_journal_add_created(array $createdTables)
 {
     $journal = installer_journal_read();
-    if ($journal === null) {
+    if ($journal === null || empty($journal['ok'])) {
         return false;
     }
-    $merged = array_unique(array_merge($journal['created_tables'], array_keys($createdTables)));
+    $merged = installer_sanitize_table_names(
+        array_merge($journal['created_tables'], array_keys($createdTables))
+    );
     $payload = [
-        'version' => 1,
+        'version' => INSTALLER_JOURNAL_VERSION,
+        'nonce' => $journal['nonce'],
+        'fingerprint' => $journal['fingerprint'],
         'database' => $journal['database'],
+        'initial_tables' => $journal['initial_tables'],
+        'planned_tables' => $journal['planned_tables'],
+        'created_tables' => $merged,
         'started_at' => $journal['started_at'] !== '' ? $journal['started_at'] : date('c'),
-        'initial_tables' => [],
-        'created_tables' => array_values($merged),
     ];
     return installer_journal_write($payload);
+}
+
+/**
+ * Phục hồi sau hard-interruption (SIGKILL giữa import).
+ *
+ * An toàn tuyệt đối:
+ *  - Journal hỏng / sai version / fingerprint không khớp / database khác:
+ *    KHÔNG DROP gì, dừng với thông báo an toàn.
+ *  - Fingerprint khớp: chỉ cleanup đúng allowlist
+ *      current_tables ∩ planned_tables − initial_tables
+ *    (tuyệt đối không "current − initial" rồi DROP tùy ý).
+ *  - Cleanup xong: xoá journal + dọn config.local.php dở (nếu có).
+ *
+ * Trả về mảng:
+ *  ['ok'=>true, 'recovered'=>bool, 'message'=>'']
+ *  ['ok'=>false, 'message'=>'...lý do dừng an toàn...']
+ */
+function installer_journal_recover($mysqli, array $cfg)
+{
+    $journal = installer_journal_read();
+    if ($journal === null) {
+        return ['ok' => true, 'recovered' => false, 'message' => ''];
+    }
+
+    $stop = function ($message) {
+        return ['ok' => false, 'message' => $message];
+    };
+
+    if (empty($journal['ok'])) {
+        return $stop(
+            'Phát hiện journal cài đặt dở nhưng file bị hỏng hoặc sai phiên bản. '
+            . 'Không tự động dọn dẹp để tránh mất dữ liệu. Hãy xoá thủ công '
+            . 'storage/install.journal.json sau khi đã kiểm tra database.'
+        );
+    }
+    if ($journal['database'] !== (string) ($cfg['database'] ?? '')) {
+        return $stop(
+            'Journal cài đặt dở thuộc database khác ("' . $journal['database'] . '"). '
+            . 'Không tự động dọn dẹp. Hãy xoá thủ công storage/install.journal.json '
+            . 'sau khi đã kiểm tra database.'
+        );
+    }
+    if ($journal['fingerprint'] === ''
+        || !hash_equals($journal['fingerprint'], installer_journal_fingerprint($cfg))) {
+        return $stop(
+            'Journal cài đặt dở thuộc một máy chủ/tài khoản database khác '
+            . '(fingerprint không khớp). Không tự động dọn dẹp. Hãy xoá thủ công '
+            . 'storage/install.journal.json sau khi đã kiểm tra database.'
+        );
+    }
+
+    // Fingerprint khớp: cleanup chọn lọc theo allowlist.
+    $current = installer_list_tables($mysqli);
+    $targets = array_values(array_diff(
+        array_intersect($current, $journal['planned_tables']),
+        $journal['initial_tables']
+    ));
+    installer_rollback_created($mysqli, array_fill_keys($targets, true));
+    installer_journal_clear();
+    // Không để config.local.php dở từ lần cài bị gián đoạn.
+    @unlink(installer_config_path());
+    return ['ok' => true, 'recovered' => !empty($targets), 'message' => ''];
 }
 
 /** Xoá journal sau khi cài đặt hoàn tất (hoặc rollback sạch). */
@@ -867,6 +1049,10 @@ function installer_status_header($code)
         500 => 'Internal Server Error',
         503 => 'Service Unavailable',
     ];
+    // CLI / headers đã gửi: không thể set header, bỏ qua (tránh warning).
+    if (PHP_SAPI === 'cli' || headers_sent()) {
+        return;
+    }
     $code = (int) $code;
     $protocol = (string) ($_SERVER['SERVER_PROTOCOL'] ?? 'HTTP/1.1');
     if ($protocol !== 'HTTP/1.1' && $protocol !== 'HTTP/1.0') {

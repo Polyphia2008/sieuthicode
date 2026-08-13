@@ -19,6 +19,23 @@ if (strpos($__requestPath, '/install') !== 0) {
         header('Location: /install/', true, 302);
         exit;
     }
+    if ($__state === 'installing') {
+        // Một tiến trình cài đặt khác đang giữ mutex và chưa có installed.lock:
+        // database có thể đang import dở. KHÔNG cho app chạy trên database dở,
+        // KHÔNG tạo installed.lock sớm — chỉ trả 503 "Đang cài đặt".
+        installer_status_header(503);
+        header('Content-Type: text/html; charset=utf-8');
+        header('Retry-After: 30');
+        exit('<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8">'
+            . '<meta name="viewport" content="width=device-width, initial-scale=1">'
+            . '<title>Đang cài đặt</title></head><body '
+            . 'style="font-family:system-ui,Arial,sans-serif;display:flex;align-items:center;'
+            . 'justify-content:center;min-height:100vh;margin:0;background:#0f1420;color:#e6e9f2">'
+            . '<div style="max-width:480px;padding:24px;text-align:center">'
+            . '<h1 style="font-size:20px">Đang cài đặt</h1>'
+            . '<p style="color:#8b93ad;font-size:14px;line-height:1.6">Website đang được cài đặt. '
+            . 'Vui lòng chờ quá trình cài đặt hoàn tất rồi tải lại trang.</p></div></body></html>');
+    }
     if ($__state === 'offline') {
         installer_status_header(503);
         header('Content-Type: text/html; charset=utf-8');

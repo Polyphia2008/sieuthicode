@@ -168,27 +168,33 @@ function installer_handle_install()
         }
 
         /*
-         * Recovery journal: nếu lần trước bị kill giữa import, journal ghi nhận
-         * chính xác các bảng installer đã tạo vào database này. Retry chỉ dọn
-         * các bảng do journal ghi nhận — tuyệt đối không DROP bảng tồn tại
-         * trước lần cài. Database có bảng ngoại lai vẫn bị từ chối.
+         * Recovery journal (crash-safe): nếu lần trước bị kill giữa import,
+         * journal ghi nhận nonce + fingerprint đích (hash host/port/user/db,
+         * KHÔNG password) + initial_tables + planned_tables (allowlist).
+         * Retry CHỈ cleanup khi fingerprint khớp, và chỉ DROP:
+         *      current_tables ∩ planned_tables − initial_tables
+         * Journal hỏng / sai version / sai fingerprint => KHÔNG DROP gì,
+         * dừng với thông báo an toàn. Không bao giờ "current − initial" tùy ý.
          */
-        $journal = installer_journal_read();
-        if ($journal !== null && $journal['database'] === (string) $db['database']) {
-            installer_rollback_created($mysqli, array_fill_keys($journal['created_tables'], true));
-            installer_journal_clear();
+        $recovery = installer_journal_recover($mysqli, $db);
+        if (empty($recovery['ok'])) {
+            mysqli_close($mysqli);
+            installer_json(false, $recovery['message'], [], 409);
         }
 
-        // Re-check database trống (chống race với một tiến trình khác).
+        // Sau recovery, database PHẢI trống (hoặc chỉ còn bảng ngoài allowlist
+        // => foreign, từ chối cài). Đây là điều kiện bắt buộc trước khi ghi journal mới.
         $tables = installer_list_tables($mysqli);
         if (!empty(installer_foreign_tables($tables))) {
             mysqli_close($mysqli);
             installer_json(false, 'Database đã có dữ liệu, không thể cài mới để tránh mất dữ liệu.', [], 409);
         }
 
-        // Ghi journal TRƯỚC khi chạy DDL đầu tiên: nếu tiến trình bị kill ngay
-        // sau đó, lần chạy tiếp theo vẫn nhận diện được đây là lần cài dở.
-        if (!installer_journal_start((string) $db['database'])) {
+        // Ghi journal TRƯỚC khi chạy DDL đầu tiên: initial_tables = snapshot DB
+        // (đã xác minh trống ở trên), planned_tables = allowlist phân tích từ
+        // các file SQL. Nếu tiến trình bị SIGKILL ngay sau đó, lần chạy tiếp
+        // theo vẫn nhận diện được và cleanup đúng phần đã tạo.
+        if (!installer_journal_start($db, $tables, installer_planned_tables())) {
             mysqli_close($mysqli);
             installer_json(false, 'Không ghi được journal phục hồi trong thư mục storage. Kiểm tra quyền ghi.', [], 500);
         }
@@ -199,6 +205,7 @@ function installer_handle_install()
             installer_journal_add_created($created);
             installer_rollback_created($mysqli, $created);
             installer_journal_clear();
+            @unlink(installer_config_path()); // không để config dở
             mysqli_close($mysqli);
             installer_json(false, 'Import database gốc thất bại. ' . $err, [], 500);
         }
@@ -207,6 +214,7 @@ function installer_handle_install()
             installer_journal_add_created($created);
             installer_rollback_created($mysqli, $created);
             installer_journal_clear();
+            @unlink(installer_config_path()); // không để config dở
             mysqli_close($mysqli);
             installer_json(false, 'Import migration chat thất bại. ' . $err, [], 500);
         }
@@ -218,6 +226,7 @@ function installer_handle_install()
         if (!installer_upsert_admin($mysqli, $admin, $err)) {
             installer_rollback_created($mysqli, $created);
             installer_journal_clear();
+            @unlink(installer_config_path()); // không để config dở
             mysqli_close($mysqli);
             installer_json(false, 'Không tạo được tài khoản quản trị. ' . $err, [], 500);
         }
@@ -227,6 +236,7 @@ function installer_handle_install()
             if (!installer_table_exists($mysqli, $t)) {
                 installer_rollback_created($mysqli, $created);
                 installer_journal_clear();
+                @unlink(installer_config_path()); // không để config dở
                 mysqli_close($mysqli);
                 installer_json(false, 'Thiếu bảng bắt buộc sau khi import: ' . $t, [], 500);
             }
@@ -236,6 +246,7 @@ function installer_handle_install()
         if (!installer_verify_admin_login($mysqli, $admin)) {
             installer_rollback_created($mysqli, $created);
             installer_journal_clear();
+            @unlink(installer_config_path()); // không để config dở
             mysqli_close($mysqli);
             installer_json(false, 'Không xác minh được tài khoản quản trị sau khi tạo.', [], 500);
         }
@@ -244,6 +255,7 @@ function installer_handle_install()
         if (!installer_write_config($db, $err)) {
             installer_rollback_created($mysqli, $created);
             installer_journal_clear();
+            @unlink(installer_config_path()); // không để config dở
             mysqli_close($mysqli);
             installer_json(false, $err, [], 500);
         }

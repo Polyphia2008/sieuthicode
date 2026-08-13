@@ -147,10 +147,12 @@ function installer_handle_install()
         @mkdir($dir, 0755, true);
     }
     $lock = @fopen(installer_mutex_path(), 'c');
-    if (!$lock || !flock($lock, LOCK_EX | LOCK_NB)) {
-        if ($lock) {
-            fclose($lock);
-        }
+    if (!$lock) {
+        // Không tạo được file lock — gần như chắc chắn là quyền thư mục storage.
+        installer_json(false, 'Không ghi được thư mục storage. Hãy cấp quyền ghi cho thư mục storage trên hosting.', [], 500);
+    }
+    if (!flock($lock, LOCK_EX | LOCK_NB)) {
+        fclose($lock);
         installer_json(false, 'Một tiến trình cài đặt khác đang chạy. Vui lòng chờ.', [], 409);
     }
 

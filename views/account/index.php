@@ -7,12 +7,20 @@ if (isset($_GET['type'])) {
     $row = $db->get_row(' SELECT * FROM `subcategory` WHERE `type_category` = \'' . $type . '\'  ');
     if (!$row) {
         new Redirect('/');
+        exit;
     }
     $id = $row['id'];
     $detail_query = json_decode($row['detail'], true);
-    $data_detail = $detail_query['data'];
+    if (!is_array($detail_query)) {
+        new Redirect('/');
+        exit;
+    }
+    $data_detail = isset($detail_query['data']) && is_array($detail_query['data'])
+        ? $detail_query['data']
+        : [];
 } else {
     new Redirect('/');
+    exit;
 }
 $title = $detail_query['name_product'] . ' | ' . $db->site('title');
 require_once realpath($_SERVER['DOCUMENT_ROOT'] . '/views/header.php');

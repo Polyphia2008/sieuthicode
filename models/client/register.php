@@ -2,9 +2,22 @@
 // statically decompiled from register.php  [structured; all 1 record(s) structured]
 
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/libs/init.php';
-if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] != $_SESSION['csrf_token']) {
-    exit(jsonMsg('error', 'Invalid CSRF Protection Token'));
-} else {
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header('HTTP/1.1 405 Method Not Allowed', true, 405);
+    exit(JsonMsg('error', 'Phương thức không được hỗ trợ'));
+}
+
+$postedToken = (string) ($_POST['csrf_token'] ?? '');
+$sessionToken = (string) ($_SESSION['csrf_token'] ?? '');
+
+if ($postedToken === '' || $sessionToken === ''
+    || !hash_equals($sessionToken, $postedToken)) {
+    header('HTTP/1.1 419 Authentication Timeout', true, 419);
+    exit(JsonMsg('error', 'Invalid CSRF Protection Token'));
+}
+
+{
     if (empty($_POST['email-register'])) {
         exit(jsonMsg('error', 'Vui lòng nhập email'));
     } else {

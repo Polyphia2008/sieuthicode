@@ -162,6 +162,7 @@ require_once APP_ROOT . '/classes/classdb.php';
 require_once APP_ROOT . '/classes/RSACrypt.php';
 require_once APP_ROOT . '/classes/functions.php';
 require_once APP_ROOT . '/libs/auth.php';
+require_once APP_ROOT . '/libs/auth_tokens.php';
 require_once APP_ROOT . '/version.php';
 
 $db = new DB();
@@ -184,12 +185,36 @@ $user = (string) $session->get();
 $data_user = [];
 $onlineUsers = [];
 
+// Persistent login 2/7 ngày: phiên trống thì thử khôi phục từ cookie remember_me
+// (raw token chỉ trong cookie, DB lưu SHA-256 hash). Banned không bao giờ restore.
+if ($user === '') {
+    $user = (string) auth_token_restore($db, $session);
+}
+
+// Thời hạn phiên server-side tuyệt đối (2 ngày mặc định / 7 ngày khi remember):
+// hết hạn thì huỷ phiên phía server kể cả khi cookie session còn hiệu lực.
+if ($user !== '') {
+    $authExpiresAt = (int) ($_SESSION['auth_expires_at'] ?? 0);
+    if ($authExpiresAt <= 0) {
+        // Phiên cũ (trước Batch 3) chưa có mốc hết hạn: gắn mốc 2 ngày một lần.
+        $_SESSION['auth_expires_at'] = time() + AUTH_TOKEN_TTL_DEFAULT;
+    } elseif ($authExpiresAt <= time()) {
+        $session->destroy();
+        $user = '';
+    }
+}
+
 if ($user !== '') {
     $data_user = $db->get_row(
         "SELECT * FROM `users` WHERE `username` = '" . $db->escape($user) . "' LIMIT 1"
     );
 
     if (!$data_user) {
+        $data_user = [];
+        $user = '';
+        $session->destroy();
+    } elseif ((int) ($data_user['banned'] ?? 0) === 1) {
+        // Tài khoản vừa bị khoá: huỷ phiên + mọi persistent token ngay lập tức.
         $data_user = [];
         $user = '';
         $session->destroy();

@@ -67,7 +67,13 @@ if ((int) $getUser['banned'] === 1) {
     exit(JsonMsg('error', 'Tài khoản của bạn đã bị tạm khoá, liên hệ admin để hỗ trợ'));
 }
 
+// Lựa chọn "Lưu đăng nhập": mặc định 2 ngày, tick thì 7 ngày.
+$remember = auth_remember_requested($_POST['remember-user'] ?? '');
+
 if ((int) $getUser['status_2fa'] === 1) {
+    // Chưa cấp session/token: lưu lựa chọn 2/7 ngày vào pending session,
+    // chỉ cấp persistent token sau khi VerifyGoogle2FA thành công.
+    $_SESSION['pending_2fa_remember'] = $remember ? 1 : 0;
     exit(json_encode([
         'status' => 'verify',
         'url' => '/verify/' . rawurlencode((string) $getUser['token']),
@@ -83,4 +89,9 @@ $db->update('users', [
 ], "`id` = '" . (int) $getUser['id'] . "'");
 insert_log($getUser['id'], 'Đăng nhập vào hệ thống bằng phương thức tài khoản');
 $session->send($getUser['username']);
+// Persistent login: raw token chỉ trong cookie, DB lưu SHA-256 hash, hạn tuyệt đối 2/7 ngày.
+$authExpiresAt = auth_token_issue($db, (int) $getUser['id'], $remember, myip());
+if ($authExpiresAt > 0) {
+    $_SESSION['auth_expires_at'] = $authExpiresAt;
+}
 exit(JsonMsg('success', 'Đăng nhập thành công!'));

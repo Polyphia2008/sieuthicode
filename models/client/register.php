@@ -71,6 +71,14 @@ if ($postedToken === '' || $sessionToken === ''
                                                             $isInsert = $db->insert('users', ['username' => $username, 'password' => $realPass, 'email' => $email, 'level' => 'member', 'device' => $_SERVER['HTTP_USER_AGENT'], 'ip' => myip(), 'ref_id' => !empty($_SESSION['ref']) ? $_SESSION['ref'] : 0, 'token' => md5(random('QWERTYUIOPASDGHJKLZXCVBNMqwertyuiopasdfghjklzxcvbnm0123456789', 6) . time()), 'SecretKey' => $google2fa->generateSecretKey(), 'create_date' => gettime()]);
                                                             echo JsonMsg('success', 'Đăng ký thành công');
                                                             $session->send($username);
+                                                            // Auto-login sau đăng ký: persistent login mặc định 2 ngày.
+                                                            $newUserId = (int) $db->get_id_insert();
+                                                            if ($newUserId > 0) {
+                                                                $authExpiresAt = auth_token_issue($db, $newUserId, false, $ipRegister);
+                                                                if ($authExpiresAt > 0) {
+                                                                    $_SESSION['auth_expires_at'] = $authExpiresAt;
+                                                                }
+                                                            }
                                                         }
                                                     }
                                                 }

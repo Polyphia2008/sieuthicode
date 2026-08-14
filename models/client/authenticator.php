@@ -62,6 +62,14 @@ if ($type === 'VerifyGoogle2FA') {
         'time_session' => time(),
     ], "`id` = '" . (int) $getUser['id'] . "'");
     $session->send($getUser['username']);
+    // Chỉ cấp persistent token SAU khi 2FA verify thành công; dùng lựa chọn 2/7 ngày
+    // đã lưu trong pending session lúc login (mặc định 2 ngày nếu không có).
+    $remember = auth_remember_requested($_SESSION['pending_2fa_remember'] ?? 0);
+    unset($_SESSION['pending_2fa_remember']);
+    $authExpiresAt = auth_token_issue($db, (int) $getUser['id'], $remember, myip());
+    if ($authExpiresAt > 0) {
+        $_SESSION['auth_expires_at'] = $authExpiresAt;
+    }
     exit(JsonMsg('success', 'Đăng nhập thành công'));
 }
 

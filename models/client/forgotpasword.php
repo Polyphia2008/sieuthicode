@@ -40,6 +40,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 sendCSM($getUser['email'], $getUser['username'], $chu_de, $content, $bcc);
                                 $isUpdate = $db->update('users', ['password' => sha1($token), 'time_session' => time()], ' `id` = \'' . $getUser['id'] . '\' ');
                                 if ($isUpdate) {
+                                    // Reset mật khẩu: thu hồi TẤT CẢ persistent token của user
+                                    // (đăng xuất mọi thiết bị) để phiên cũ không thể dùng tiếp.
+                                    auth_token_revoke_all($db, (int) $getUser['id']);
                                     exit(JsonMsg('success', 'Vui lòng kiểm tra Email của bạn để hoàn tất quá trình đặt lại mật khẩu'));
                                 }
                             }

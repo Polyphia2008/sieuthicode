@@ -109,6 +109,11 @@ try {
 
     insert_log($account['id'], 'Đăng nhập vào hệ thống bằng Google');
     $session->send($account['username']);
+    // Google OAuth: persistent login mặc định 2 ngày (thời hạn tuyệt đối, hash trong DB).
+    $authExpiresAt = auth_token_issue($db, (int) $account['id'], false, myip());
+    if ($authExpiresAt > 0) {
+        $_SESSION['auth_expires_at'] = $authExpiresAt;
+    }
     header('Location: /');
     exit();
 } catch (Throwable $exception) {

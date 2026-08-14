@@ -3,7 +3,9 @@
 
 $title = 'Dashboard';
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/cpanel/views/header.php';
-if (isset($_POST['SaveSettings']) && $data_user['level'] == 'admin') {
+// Cấu hình nạp thẻ cào là chức năng nhạy cảm: chỉ superadmin (cả GET lẫn POST).
+require_superadmin(false);
+if (isset($_POST['SaveSettings']) && is_superadmin_account($data_user)) {
     foreach ($_POST as $__key => $value) {
         $key = $__key;
         $db->update('options', ['value' => $value], ' `key` = \'' . $key . '\' ');

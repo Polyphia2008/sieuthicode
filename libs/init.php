@@ -161,6 +161,7 @@ require_once APP_ROOT . '/classes/session.php';
 require_once APP_ROOT . '/classes/classdb.php';
 require_once APP_ROOT . '/classes/RSACrypt.php';
 require_once APP_ROOT . '/classes/functions.php';
+require_once APP_ROOT . '/libs/auth.php';
 require_once APP_ROOT . '/version.php';
 
 $db = new DB();

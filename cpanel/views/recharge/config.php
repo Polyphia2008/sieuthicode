@@ -3,14 +3,16 @@
 
 $title = 'Dashboard';
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/cpanel/views/header.php';
-if (isset($_POST['SaveSettings']) && $data_user['level'] == 'admin') {
+// Cấu hình ngân hàng là chức năng nhạy cảm: chỉ superadmin (cả GET lẫn POST).
+require_superadmin(false);
+if (isset($_POST['SaveSettings']) && is_superadmin_account($data_user)) {
     foreach ($_POST as $__key => $value) {
         $key = $__key;
         $db->update('options', ['value' => $value], ' `key` = \'' . $key . '\' ');
     }
     exit('<script type="text/javascript">if(!alert("Lưu thành công !")){window.history.back().location.reload();}</script>');
 } else {
-    if (isset($_POST['ThemNganHang']) && $data_user['level'] == 'admin') {
+    if (isset($_POST['ThemNganHang']) && is_superadmin_account($data_user)) {
         $isInsert = $db->insert('bank', ['short_name' => strtoupper(Anti_xss($_POST['short_name'])), 'accountNumber' => Anti_xss($_POST['accountNumber']), 'accountName' => Anti_xss($_POST['accountName']), 'url_api' => Anti_xss($_POST['urlApi'])]);
         if ($isInsert) {
             insetLog($data_user['id'], 'Thêm ngân hàng (' . $config_listbank[Anti_xss($_POST['short_name'])] . ' - ' . $_POST['accountNumber'] . ') vào hệ thống.');

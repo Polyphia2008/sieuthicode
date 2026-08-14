@@ -5,7 +5,7 @@ $title = 'Dashboard';
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/cpanel/views/header.php';
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/cpanel/views/sidebar.php';
 $google2fa = new PragmaRX\Google2FA\Google2FA();
-if (isset($_POST['AddUser']) && $data_user['level'] == 'admin') {
+if (isset($_POST['AddUser']) && is_admin_account($data_user)) {
     $usernames = $_POST['username'];
     $passwords = $_POST['password'];
     $emails = $_POST['email'];
@@ -294,7 +294,7 @@ if (isset($_POST['AddUser']) && $data_user['level'] == 'admin') {
         echo 'đ</span>
                                     </td>
                                     <td class="text-center">';
-        echo $row['level'] == 'admin' ? '<span class="badge bg-success">Admin</span>' : '<span class="badge bg-danger">Không</span>';
+        echo $row['level'] == 'superadmin' ? '<span class="badge bg-danger">Superadmin</span>' : ($row['level'] == 'admin' ? '<span class="badge bg-success">Admin</span>' : '<span class="badge bg-danger">Không</span>');
         echo '</td>
                                     <td class="text-center">';
         echo $row['banned'] == 1 ? '<span class="badge bg-danger">Banned</span>' : '<span class="badge bg-success">Active</span>';

@@ -4,7 +4,7 @@
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/libs/init.php';
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if ($user) {
-        if ($data_user['level'] != 'admin') {
+        if (!is_admin_account($data_user)) {
             exit(JsonMsg('error', 'Bạn không có quyền truy cập vào trang này'));
         } else {
             if ($db->site('status_demo') != 0) {
@@ -251,6 +251,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 }
                             }
                         case 'removeBank':
+                            if (!is_superadmin_account($data_user)) {
+                                exit(JsonMsg('error', 'Chức năng này chỉ dành cho Superadmin'));
+                            }
                             $check_bank = $db->get_row('SELECT * FROM `bank` WHERE `id` = ' . $id);
                             if (!$check_bank) {
                                 exit(JsonMsg('error', 'Ngân hàng không tồn tại'));

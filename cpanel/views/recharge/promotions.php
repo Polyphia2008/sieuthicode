@@ -4,7 +4,7 @@
 $title = 'Dashboard';
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/cpanel/views/header.php';
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/cpanel/views/sidebar.php';
-if (isset($_POST['AddPromotion']) && $data_user['level'] == 'admin') {
+if (isset($_POST['AddPromotion']) && is_admin_account($data_user)) {
     $isInsert = $db->insert('promotions', ['amount' => Anti_xss($_POST['amount']), 'discount' => Anti_xss($_POST['discount']), 'create_date' => gettime(), 'update_date' => gettime()]);
     if ($isInsert) {
         insert_log($data_user['id'], 'Thêm mốc khuyến mãi (' . format_cash(Anti_xss($_POST['amount'])) . ' - ' . Anti_xss($_POST['discount']) . '%) vào hệ thống.');

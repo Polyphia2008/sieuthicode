@@ -4,7 +4,7 @@
 $title = 'Dashboard';
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/cpanel/views/header.php';
 $sotin1trang = 12;
-if (isset($_GET['page']) && $data_user['level'] == 'admin') {
+if (isset($_GET['page']) && is_admin_account($data_user)) {
     $page = max(1, (int) $_GET['page']);
 } else {
     $page = 1;
@@ -78,9 +78,11 @@ echo '<main id="main-container">
         <div class="row">
             <div class="col-xl-12">
                 <div class="text-right">
+                    <?php if (is_superadmin_account($data_user)) { ?>
                     <a class="btn btn-primary label-btn mb-3" href="/cpanel/recharge/bank/config">
                         <i class="ri-settings-4-line label-btn-icon me-2"></i> CẤU HÌNH
                     </a>
+                    <?php } ?>
                 </div>
             </div>
             <div class="col-xl-5">

@@ -3,7 +3,7 @@
 
 $title = 'Dashboard';
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/cpanel/views/header.php';
-if (isset($_GET['limit']) && $data_user['level'] == 'admin') {
+if (isset($_GET['limit']) && is_admin_account($data_user)) {
     $limit = min(200, max(1, (int) $_GET['limit']));
 } else {
     $limit = 12;
@@ -105,9 +105,11 @@ echo '<main id="main-container">
         <div class="row">
             <div class="col-xl-12">
                 <div class="text-right">
+                    <?php if (is_superadmin_account($data_user)) { ?>
                     <a class="btn btn-primary label-btn mb-3" href="/cpanel/recharge/card/config">
                         <i class="ri-settings-4-line label-btn-icon me-2"></i> CẤU HÌNH
                     </a>
+                    <?php } ?>
                 </div>
             </div>
             <div class="col-xl-5">

@@ -4,7 +4,7 @@
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/libs/init.php';
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if ($user) {
-        if ($data_user['level'] != 'admin') {
+        if (!is_admin_account($data_user)) {
             exit(JsonMsg('error', 'Bạn không có quyền truy cập vào trang này'));
         } else {
             if ($db->site('status_demo') != 0) {
@@ -33,6 +33,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             $check_user = $db->get_row('SELECT * FROM `users` WHERE `id` = ' . $id);
                             if (!$check_user) {
                                 exit(JsonMsg('error', 'Người dùng không tồn tại'));
+                            } elseif (!is_superadmin_account($data_user)
+                                && (is_superadmin_account($check_user) || is_last_superadmin($db, $check_user))) {
+                                // Admin thường không được xoá superadmin; ai cũng không xoá được superadmin cuối cùng.
+                                exit(JsonMsg('error', 'Không thể xoá tài khoản superadmin này'));
+                            } elseif (is_last_superadmin($db, $check_user)) {
+                                exit(JsonMsg('error', 'Không thể xoá superadmin cuối cùng của hệ thống'));
                             } else {
                                 $isRemove = $db->remove('users', ' `id` = \'' . $id . '\' ');
                                 if ($isRemove) {
@@ -43,6 +49,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 }
                             }
                         case 'removeBank':
+                            if (!is_superadmin_account($data_user)) {
+                                exit(JsonMsg('error', 'Chức năng này chỉ dành cho Superadmin'));
+                            }
                             $check_bank = $db->get_row('SELECT * FROM `bank` WHERE `id` = ' . $id);
                             if (!$check_bank) {
                                 exit(JsonMsg('error', 'Ngân hàng không tồn tại'));

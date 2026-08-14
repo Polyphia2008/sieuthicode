@@ -4,7 +4,7 @@
 $title = 'Dashboard';
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/cpanel/views/header.php';
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/cpanel/views/sidebar.php';
-if (isset($_GET['id']) && $data_user['level'] == 'admin') {
+if (isset($_GET['id']) && is_admin_account($data_user)) {
     $user = $db->get_row(' SELECT * FROM `users` WHERE `id` = \'' . Anti_xss($_GET['id']) . '\'  ');
     if (!$user) {
         new Redirect('/cpanel/users/list');
@@ -12,7 +12,14 @@ if (isset($_GET['id']) && $data_user['level'] == 'admin') {
 } else {
     new Redirect('/cpanel/users/list');
 }
-if (isset($_POST['btnCongTien']) && $data_user['level'] == 'admin') {
+// Admin thường KHÔNG được chạm vào tài khoản superadmin (cộng/trừ tiền, sửa, khoá...).
+$__targetIsSuperadmin = is_superadmin_account($user);
+$__actorIsSuperadmin = is_superadmin_account($data_user);
+$__forbidAdminOnSuperadmin = $__targetIsSuperadmin && !$__actorIsSuperadmin;
+if (isset($_POST['btnCongTien']) && is_admin_account($data_user)) {
+    if ($__forbidAdminOnSuperadmin) {
+        exit('<script type="text/javascript">if(!alert("Chỉ superadmin mới được thao tác trên tài khoản superadmin!")){window.history.back().location.reload();}</script>');
+    }
     $value = Anti_xss($_POST['amount']);
     $ghichu = Anti_xss($_POST['reason']);
     $wallet = Anti_xss($_POST['wallet']);
@@ -28,7 +35,10 @@ if (isset($_POST['btnCongTien']) && $data_user['level'] == 'admin') {
         exit('<script type="text/javascript">if(!alert("Cộng tiền thành công!")){window.history.back().location.reload();}</script>');
     }
 } else {
-    if (isset($_POST['btnTruTien']) && $data_user['level'] == 'admin') {
+    if (isset($_POST['btnTruTien']) && is_admin_account($data_user)) {
+        if ($__forbidAdminOnSuperadmin) {
+            exit('<script type="text/javascript">if(!alert("Chỉ superadmin mới được thao tác trên tài khoản superadmin!")){window.history.back().location.reload();}</script>');
+        }
         $value = Anti_xss($_POST['amount']);
         $ghichu = Anti_xss($_POST['reason']);
         if ($value <= 0) {
@@ -38,7 +48,10 @@ if (isset($_POST['btnCongTien']) && $data_user['level'] == 'admin') {
             exit('<script type="text/javascript">if(!alert("Trừ tiền thành công!")){window.history.back().location.reload();}</script>');
         }
     } else {
-        if (isset($_POST['btnCongTienItem']) && $data_user['level'] == 'admin') {
+        if (isset($_POST['btnCongTienItem']) && is_admin_account($data_user)) {
+            if ($__forbidAdminOnSuperadmin) {
+                exit('<script type="text/javascript">if(!alert("Chỉ superadmin mới được thao tác trên tài khoản superadmin!")){window.history.back().location.reload();}</script>');
+            }
             $value = Anti_xss($_POST['amount']);
             $ghichu = Anti_xss($_POST['reason']);
             $wallet = Anti_xss($_POST['wallet']);
@@ -49,7 +62,10 @@ if (isset($_POST['btnCongTien']) && $data_user['level'] == 'admin') {
                 exit('<script type="text/javascript">if(!alert("Cộng tiền thành công!")){window.history.back().location.reload();}</script>');
             }
         } else {
-            if (isset($_POST['btnTruTienItem']) && $data_user['level'] == 'admin') {
+            if (isset($_POST['btnTruTienItem']) && is_admin_account($data_user)) {
+                if ($__forbidAdminOnSuperadmin) {
+                    exit('<script type="text/javascript">if(!alert("Chỉ superadmin mới được thao tác trên tài khoản superadmin!")){window.history.back().location.reload();}</script>');
+                }
                 $value = Anti_xss($_POST['amount']);
                 $ghichu = Anti_xss($_POST['reason']);
                 if ($value <= 0) {
@@ -59,13 +75,32 @@ if (isset($_POST['btnCongTien']) && $data_user['level'] == 'admin') {
                     exit('<script type="text/javascript">if(!alert("Trừ tiền thành công!")){window.history.back().location.reload();}</script>');
                 }
             } else {
-                if (isset($_POST['btnSaveUser']) && $data_user['level'] == 'admin') {
+                if (isset($_POST['btnSaveUser']) && is_admin_account($data_user)) {
+                    // Chỉ superadmin được đổi vai trò (level) hoặc sửa tài khoản superadmin.
+                    $newLevel = (string) ($_POST['level'] ?? $user['level']);
+                    if (!$__actorIsSuperadmin) {
+                        if ($__targetIsSuperadmin) {
+                            exit('<script type="text/javascript">if(!alert("Chỉ superadmin mới được chỉnh sửa tài khoản superadmin!")){window.history.back().location.reload();}</script>');
+                        }
+                        if ($newLevel !== (string) $user['level']) {
+                            exit('<script type="text/javascript">if(!alert("Chỉ superadmin mới được thay đổi vai trò tài khoản!")){window.history.back().location.reload();}</script>');
+                        }
+                    }
+                    // Whitelist role: giá trị lạ (forged POST) bị bỏ qua, giữ nguyên role hiện tại.
+                    if (!in_array($newLevel, ['member', 'admin', 'superadmin'], true)) {
+                        $newLevel = (string) $user['level'];
+                    }
+                    // Không cho hạ quyền / khoá superadmin cuối cùng còn hoạt động.
+                    if ($__targetIsSuperadmin && is_last_superadmin($db, $user)
+                        && ($newLevel !== 'superadmin' || (string) ($_POST['banned'] ?? '0') === '1')) {
+                        exit('<script type="text/javascript">if(!alert("Không thể hạ quyền hoặc khoá superadmin cuối cùng của hệ thống!")){window.history.back().location.reload();}</script>');
+                    }
                     $group = $_POST['group'];
                     $group_string = null;
                     if ($group !== null) {
                         $group_string = Anti_xss(implode(',', $group));
                     }
-                    $isUpdate = $db->update('users', ['username' => Anti_xss($_POST['username']), 'level' => Anti_xss($_POST['level']), 'banned' => Anti_xss($_POST['banned']), 'token' => Anti_xss($_POST['token']), 'email' => Anti_xss($_POST['email']), 'cost' => Anti_xss($_POST['cost']), 'phone' => Anti_xss($_POST['phone']), 'ctv' => Anti_xss($_POST['ctv']), 'ctv_account' => Anti_xss($_POST['ctv_account']), 'ctv_boosting' => Anti_xss($_POST['ctv_boosting']), 'chietkhau_banacc' => Anti_xss($_POST['chietkhau_banacc']), 'maxprice' => Anti_xss($_POST['maxprice']), 'role_category' => $group_string, 'status_2fa' => Anti_xss($_POST['status_2fa']), 'chietkhau' => Anti_xss($_POST['chietkhau']), 'login_attempts' => 0], ' `id` = \'' . $user['id'] . '\' ');
+                    $isUpdate = $db->update('users', ['username' => Anti_xss($_POST['username']), 'level' => Anti_xss($newLevel), 'banned' => Anti_xss($_POST['banned']), 'token' => Anti_xss($_POST['token']), 'email' => Anti_xss($_POST['email']), 'cost' => Anti_xss($_POST['cost']), 'phone' => Anti_xss($_POST['phone']), 'ctv' => Anti_xss($_POST['ctv']), 'ctv_account' => Anti_xss($_POST['ctv_account']), 'ctv_boosting' => Anti_xss($_POST['ctv_boosting']), 'chietkhau_banacc' => Anti_xss($_POST['chietkhau_banacc']), 'maxprice' => Anti_xss($_POST['maxprice']), 'role_category' => $group_string, 'status_2fa' => Anti_xss($_POST['status_2fa']), 'chietkhau' => Anti_xss($_POST['chietkhau']), 'login_attempts' => 0], ' `id` = \'' . $user['id'] . '\' ');
                     if ($isUpdate) {
                         if (!empty($_POST['password'])) {
                             $password = Anti_xss($_POST['password']);
@@ -254,7 +289,11 @@ if (isset($_POST['btnCongTien']) && $data_user['level'] == 'admin') {
                                             <option ';
                     echo $user['level'] == 'admin' ? 'selected' : '';
                     echo ' value="admin">
-                                                Super Admin (Admin Role)</option>
+                                                Quản trị viên (Admin)</option>
+                                            <option ';
+                    echo $user['level'] == 'superadmin' ? 'selected' : '';
+                    echo ' value="superadmin">
+                                                Super Admin (toàn quyền)</option>
                                         </select>
                                     </div>
                                 </div>

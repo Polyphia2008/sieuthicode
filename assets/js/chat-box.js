@@ -314,6 +314,52 @@
         });
     }
 
+    // ---- Mobile layout offsets ----
+    // Đo chiều cao header trên cùng (#menu sticky) để .chat-wrap chiếm đúng phần
+    // còn lại của khung nhìn (composer không bị đẩy/che). Chạy ở mọi kích thước.
+    var rootEl = document.documentElement;
+    var topMenuEl = document.getElementById('menu');
+    function updateTopOffset() {
+        if (topMenuEl) {
+            var h = Math.round(topMenuEl.getBoundingClientRect().height);
+            if (h > 0) {
+                rootEl.style.setProperty('--chat-top-offset', h + 'px');
+            }
+        }
+    }
+
+    // visualViewport: khi bàn phím ảo mở, khung nhìn co lại -> tính phần chênh
+    // vào --chat-vv-offset để composer luôn nằm ngay trên bàn phím (không bị che).
+    // Chỉ áp dụng khi thực sự cần (có visualViewport + màn hình hẹp/mobile).
+    function updateViewportOffset() {
+        if (!window.visualViewport) {
+            return;
+        }
+        // offsetTop tính cả khi pinch-zoom/scroll; height phản ánh bàn phím.
+        var gap = window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop;
+        var px = Math.max(0, Math.round(gap));
+        rootEl.style.setProperty('--chat-vv-offset', px + 'px');
+        // Giữ composer + tin mới nhất trong tầm nhìn khi bàn phím mở (nếu đang gần đáy).
+        scrollToBottom(false);
+    }
+
+    updateTopOffset();
+    window.addEventListener('resize', updateTopOffset);
+    window.addEventListener('resize', updateViewportOffset);
+    window.addEventListener('orientationchange', function () {
+        updateTopOffset();
+        updateViewportOffset();
+    });
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', updateViewportOffset);
+        window.visualViewport.addEventListener('scroll', updateViewportOffset);
+    }
+    // Đảm bảo composer + bàn phím căn đúng ngay khi focus/blur ô nhập trên mobile.
+    inputEl.addEventListener('focus', function () {
+        setTimeout(updateViewportOffset, 300); // chờ bàn phím animate xong
+    });
+    inputEl.addEventListener('blur', updateViewportOffset);
+
     // ---- Khởi động ----
     loadInitial();
     pollTimer = setInterval(poll, POLL_INTERVAL);

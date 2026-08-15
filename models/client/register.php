@@ -69,8 +69,22 @@ if ($postedToken === '' || $sessionToken === ''
                                                             $realPass = sha1($password);
                                                             $google2fa = new PragmaRX\Google2FA\Google2FA();
                                                             $isInsert = $db->insert('users', ['username' => $username, 'password' => $realPass, 'email' => $email, 'level' => 'member', 'device' => $_SERVER['HTTP_USER_AGENT'], 'ip' => myip(), 'ref_id' => !empty($_SESSION['ref']) ? $_SESSION['ref'] : 0, 'token' => md5(random('QWERTYUIOPASDGHJKLZXCVBNMqwertyuiopasdfghjklzxcvbnm0123456789', 6) . time()), 'SecretKey' => $google2fa->generateSecretKey(), 'create_date' => gettime()]);
-                                                            echo JsonMsg('success', 'Đăng ký thành công');
+                                                            if (!$isInsert) {
+                                                                exit(JsonMsg('error', 'Đã xảy ra lỗi khi tạo tài khoản, vui lòng thử lại'));
+                                                            }
+                                                            // Thứ tự bắt buộc: lấy insert ID -> session->send -> phát persistent
+                                                            // token -> CUỐI CÙNG mới echo JSON (không setcookie sau khi
+                                                            // body đã bắt đầu -> tránh headers already sent).
+                                                            $newUserId = (int) $db->get_id_insert();
                                                             $session->send($username);
+                                                            // Auto-login sau đăng ký: persistent login mặc định 2 ngày.
+                                                            if ($newUserId > 0) {
+                                                                $authExpiresAt = auth_token_issue($db, $newUserId, false, $ipRegister);
+                                                                if ($authExpiresAt > 0) {
+                                                                    $_SESSION['auth_expires_at'] = $authExpiresAt;
+                                                                }
+                                                            }
+                                                            exit(JsonMsg('success', 'Đăng ký thành công'));
                                                         }
                                                     }
                                                 }

@@ -4,9 +4,12 @@
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/libs/init.php';
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if ($user) {
-        if ($data_user['level'] != 'admin') {
+        if (!is_admin_account($data_user)) {
+            http_response_code(403);
             exit(JsonMsg('error', 'Bạn không có quyền truy cập vào trang này'));
         } else {
+            // Bắt buộc CSRF token hợp lệ cho mọi thao tác xoá (admin/superadmin).
+            verify_csrf_token(true);
             if ($db->site('status_demo') != 0) {
                 exit(JsonMsg('error', 'Đây là trang web demo bạn không thể thực hiện chức năng này !'));
             } else {
@@ -33,16 +36,48 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             $check_user = $db->get_row('SELECT * FROM `users` WHERE `id` = ' . $id);
                             if (!$check_user) {
                                 exit(JsonMsg('error', 'Người dùng không tồn tại'));
-                            } else {
+                            } elseif (!is_superadmin_account($data_user) && is_superadmin_account($check_user)) {
+                                // Admin thường không bao giờ được xoá superadmin.
+                                http_response_code(403);
+                                exit(JsonMsg('error', 'Không thể xoá tài khoản superadmin này'));
+                            }
+                            // TOCTOU: nếu xoá một superadmin đang ACTIVE thì phải khoá
+                            // hàng + đếm lại trong transaction — hai request đồng thời
+                            // xoá hai superadmin cuối sẽ được serialize, request sau bị chặn.
+                            $__isActiveSuper = is_superadmin_account($check_user)
+                                && (int) ($check_user['banned'] ?? 0) === 0;
+                            if ($__isActiveSuper) {
+                                $db->query('START TRANSACTION');
+                                $db->get_row('SELECT `id` FROM `users` WHERE `id` = \''
+                                    . (int) $check_user['id'] . '\' FOR UPDATE');
+                                if (count_superadmins($db) <= 1) {
+                                    $db->query('ROLLBACK');
+                                    http_response_code(403);
+                                    exit(JsonMsg('error', 'Không thể xoá superadmin cuối cùng của hệ thống'));
+                                }
                                 $isRemove = $db->remove('users', ' `id` = \'' . $id . '\' ');
                                 if ($isRemove) {
+                                    $db->query('COMMIT');
                                     insert_log($data_user['id'], 'Thực hiện xóa thành viên [' . $check_user['username'] . '] ra khỏi hệ thống');
                                     exit(JsonMsg('success', 'Xóa người dùng thành công'));
-                                } else {
-                                    exit(JsonMsg('error', 'Đã xảy ra lỗi khi xóa người dùng'));
                                 }
+                                $db->query('ROLLBACK');
+                                exit(JsonMsg('error', 'Đã xảy ra lỗi khi xóa người dùng'));
+                            }
+                            // Banned superadmin / admin / member: xoá trực tiếp (không ảnh
+                            // hưởng invariant "còn ít nhất 1 superadmin ACTIVE").
+                            $isRemove = $db->remove('users', ' `id` = \'' . $id . '\' ');
+                            if ($isRemove) {
+                                insert_log($data_user['id'], 'Thực hiện xóa thành viên [' . $check_user['username'] . '] ra khỏi hệ thống');
+                                exit(JsonMsg('success', 'Xóa người dùng thành công'));
+                            } else {
+                                exit(JsonMsg('error', 'Đã xảy ra lỗi khi xóa người dùng'));
                             }
                         case 'removeBank':
+                            if (!is_superadmin_account($data_user)) {
+                                http_response_code(403);
+                                exit(JsonMsg('error', 'Chức năng này chỉ dành cho Superadmin'));
+                            }
                             $check_bank = $db->get_row('SELECT * FROM `bank` WHERE `id` = ' . $id);
                             if (!$check_bank) {
                                 exit(JsonMsg('error', 'Ngân hàng không tồn tại'));

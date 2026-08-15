@@ -32,13 +32,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 $isUpdate = $db->update('users', ['password' => sha1($new_password), 'time_session' => time()], ' `id` = \'' . $data_user['id'] . '\' ');
                                 if ($isUpdate) {
                                     insert_log($data_user['id'], 'Cập nhật mật khẩu cá nhân');
+                                    // Đổi mật khẩu: thu hồi TẤT CẢ persistent token của user
+                                    // (mọi thiết bị đăng xuất) + xoá cookie remember_me hiện tại.
+                                    auth_token_revoke_all($db, (int) $data_user['id']);
+                                    auth_token_clear_cookie();
                                     $session->destroy();
-                                    if (isset($_COOKIE['remember_me'])) {
-                                        $token = Anti_xss($_COOKIE['remember_me']);
-                                        setcookie('remember_me', '', time() - 3600, '/', '', true, true);
-                                        $sql = "DELETE FROM `auth_tokens` WHERE `token` = '" . $db->escape($token) . "'";
-                                        $db->query($sql);
-                                    }
                                     exit(JsonMsg('success', 'Cập nhật thành công'));
                                 } else {
                                     exit(JsonMsg('error', 'Đã xảy ra lỗi cập nhập dữ liệu'));

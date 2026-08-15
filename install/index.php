@@ -3,9 +3,11 @@
  * Trình cài đặt Siêu Thị Code — wizard 3 bước.
  *
  * Trang này chỉ render form; mọi hành động thay đổi trạng thái đi qua
- * install/api.php (POST + CSRF + rate limit + mutex). Không in password,
- * không hotlink CDN. CSS/JS nằm ở assets/css/installer.css và
- * assets/js/installer.js.
+ * install/api.php (POST + CSRF + rate limit + mutex). Không in password.
+ *
+ * Giao diện dùng stylesheet/JS gốc của dự án (assets/css/installer.css,
+ * assets/js/installer.js) — không sao chép asset của bên thứ ba, không
+ * hotlink CDN, icon dùng inline SVG tự vẽ.
  */
 
 require_once __DIR__ . '/bootstrap.php';
@@ -14,6 +16,27 @@ installer_guard_not_installed(false);
 
 $csrf = installer_csrf_token();
 $csrfJson = json_encode($csrf, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+
+// Cache-busting theo filemtime (không dùng rand()/time()).
+$assetV = function ($path) {
+    $f = APP_ROOT . $path;
+    return is_file($f) ? (string) filemtime($f) : '1';
+};
+
+// Helper render icon inline SVG (stroke-based, theo currentColor).
+$ico = function ($name) {
+    $paths = [
+        'db'      => '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>',
+        'right'   => '<path d="M5 12h14M13 6l6 6-6 6"/>',
+        'left'    => '<path d="M19 12H5M11 6l-6 6 6 6"/>',
+        'settings'=> '<circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.4 2.6a7 7 0 0 0-2 1.2l-2.5-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.4-2.6a7 7 0 0 0 2-1.2l2.5 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z"/>',
+        'login'   => '<path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/>',
+        'info'    => '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+    ];
+    $d = isset($paths[$name]) ? $paths[$name] : '';
+    return '<svg class="ins-ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+        . $d . '</svg>';
+};
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -22,175 +45,195 @@ $csrfJson = json_encode($csrf, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSO
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <title>Cài đặt Siêu Thị Code</title>
-<link rel="stylesheet" href="/assets/css/installer.css">
+<link rel="stylesheet" href="/assets/css/installer.css?v=<?php echo $assetV('/assets/css/installer.css'); ?>">
 </head>
-<body data-csrf="<?php echo installer_e($csrf); ?>" data-api="/install/api.php">
-<div class="stc-shell">
+<body class="ins-body" data-csrf="<?php echo installer_e($csrf); ?>" data-api="/install/api.php">
 
-  <!-- Panel trái (tối): lời chào + minh hoạ local -->
-  <aside class="stc-side" aria-label="Giới thiệu">
-    <div class="stc-brand">
-      <span class="stc-brand__logo" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h13A2.5 2.5 0 0 1 21 7.5v9a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 16.5v-9Z" fill="#fff" opacity=".92"/>
-          <path d="M7 10h10M7 13.5h6" stroke="#3556d4" stroke-width="1.8" stroke-linecap="round"/>
-        </svg>
-      </span>
-      <span>
-        <span class="stc-brand__name">Siêu Thị Code</span><br>
-        <span class="stc-brand__tag">Trình cài đặt website</span>
-      </span>
-    </div>
+<div class="ins-root">
 
-    <div class="stc-side__hello">
-      <h1>Chào mừng bạn đến với Siêu&nbsp;Thị&nbsp;Code</h1>
-      <p>Trình cài đặt sẽ thiết lập cơ sở dữ liệu và tài khoản quản trị trong
-         3 bước đơn giản. Mọi thao tác đều an toàn và có thể thử lại nếu bị gián đoạn.</p>
-    </div>
-
-    <div class="stc-art" aria-hidden="true">
-      <svg viewBox="0 0 300 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Minh hoạ cài đặt">
-        <defs>
-          <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stop-color="#4f7cff"/><stop offset="1" stop-color="#6b93ff"/>
-          </linearGradient>
-          <linearGradient id="g2" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stop-color="#22304a"/><stop offset="1" stop-color="#101828"/>
-          </linearGradient>
-        </defs>
-        <rect x="20" y="30" width="260" height="130" rx="14" fill="url(#g2)" stroke="#2a3a5f"/>
-        <rect x="38" y="50" width="120" height="12" rx="6" fill="url(#g1)"/>
-        <rect x="38" y="72" width="180" height="8" rx="4" fill="#2a3a5f"/>
-        <rect x="38" y="88" width="150" height="8" rx="4" fill="#2a3a5f"/>
-        <rect x="38" y="104" width="170" height="8" rx="4" fill="#2a3a5f"/>
-        <circle cx="240" cy="120" r="22" fill="none" stroke="#2fbf71" stroke-width="3"/>
-        <path d="M232 120l6 6 12-12" stroke="#2fbf71" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="60" cy="140" r="5" fill="#4f7cff"/>
-        <circle cx="82" cy="140" r="5" fill="#2a3a5f"/>
-        <circle cx="104" cy="140" r="5" fill="#2a3a5f"/>
-      </svg>
-    </div>
-
-    <p class="stc-side__foot">&copy; Siêu Thị Code — an toàn, không gửi dữ liệu ra ngoài.</p>
-  </aside>
-
-  <!-- Panel phải (sáng): form cài đặt -->
-  <main class="stc-main">
-    <div class="stc-card">
-      <h1 class="stc-card__title">Cài đặt website</h1>
-      <p class="stc-card__sub">Hoàn thành 3 bước bên dưới để đưa website vào hoạt động.</p>
-
-      <!-- Progress -->
-      <div class="stc-progress">
-        <div class="stc-progress__meta">
-          <span class="stc-progress__label" id="progress-label">Kết nối database</span>
-          <span class="stc-progress__count" id="progress-count">Bước 1/3</span>
+    <!-- Panel trái (tối): lời chào + minh hoạ inline SVG -->
+    <aside class="ins-pane ins-pane-aside">
+        <div class="text-block">
+            <!-- Minh hoạ cài đặt: inline SVG gốc của dự án (không dùng ảnh ngoài). -->
+            <svg class="ins-hero" viewBox="0 0 220 160" role="img" aria-label="Minh hoạ trình cài đặt">
+                <defs>
+                    <linearGradient id="insG1" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0" stop-color="#f2556f"/><stop offset="1" stop-color="#d92c4f"/>
+                    </linearGradient>
+                </defs>
+                <rect x="30" y="24" width="160" height="104" rx="10" fill="#ffffff" opacity="0.08"/>
+                <rect x="42" y="38" width="136" height="12" rx="6" fill="#ffffff" opacity="0.25"/>
+                <rect x="42" y="58" width="92" height="8" rx="4" fill="#ffffff" opacity="0.18"/>
+                <rect x="42" y="72" width="112" height="8" rx="4" fill="#ffffff" opacity="0.14"/>
+                <circle cx="60" cy="104" r="9" fill="url(#insG1)"/>
+                <circle cx="110" cy="104" r="9" fill="#ffffff" opacity="0.35"/>
+                <circle cx="160" cy="104" r="9" fill="#ffffff" opacity="0.35"/>
+                <path d="M69 104h32M119 104h32" stroke="#ffffff" stroke-opacity="0.4" stroke-width="3" stroke-linecap="round"/>
+                <circle cx="60" cy="104" r="4" fill="#fff"/>
+                <path d="M100 138h20" stroke="url(#insG1)" stroke-width="4" stroke-linecap="round"/>
+            </svg>
+            <h3 class="text-white">Chào mừng bạn đến với <b>Siêu&nbsp;Thị&nbsp;Code</b></h3>
+            <p>Trình cài đặt sẽ thiết lập cơ sở dữ liệu và tài khoản quản trị trong
+               3 bước đơn giản. Mọi thao tác đều an toàn và có thể thử lại nếu bị gián đoạn.</p>
         </div>
-        <div class="stc-progress__bar" id="progress-bar" role="progressbar"
-             aria-valuemin="1" aria-valuemax="3" aria-valuenow="1" aria-label="Tiến trình cài đặt">
-          <div class="stc-progress__fill" id="progress-fill"></div>
-        </div>
-      </div>
+        <p class="ins-tagline">&copy; Siêu Thị Code — an toàn, không gửi dữ liệu ra ngoài.</p>
+    </aside>
 
-      <!-- Bước 1: Database -->
-      <section class="stc-step is-on" id="step-1" aria-labelledby="t1">
-        <h2 class="stc-step__title" id="t1" tabindex="-1">Kết nối database</h2>
-        <p class="stc-step__desc">Nhập thông tin MySQL được tạo trong cPanel của bạn.</p>
+    <!-- Panel phải (sáng): form cài đặt -->
+    <main class="ins-pane ins-pane-main">
+        <div class="ins-pane-inner">
 
-        <div class="stc-help">
-          <strong>Hướng dẫn trong cPanel &rarr; MySQL Databases:</strong>
-          <ol>
-            <li>Tạo một <strong>database</strong> mới.</li>
-            <li>Tạo một <strong>database user</strong> mới.</li>
-            <li>Thêm user vào database và chọn <strong>ALL PRIVILEGES</strong>.</li>
-          </ol>
-        </div>
-
-        <form id="form-db" autocomplete="off" novalidate>
-          <div class="stc-grid2">
-            <div class="stc-field">
-              <label for="db_host">Database host</label>
-              <input id="db_host" name="db_host" value="localhost" required>
+            <!-- Progress -->
+            <div id="progress-wrap">
+                <div class="ins-progress-meta">
+                    <span id="progress-label">Kết nối database</span>
+                    <span id="progress-count">Bước 1/3</span>
+                </div>
+                <div class="ins-progress" id="progress-bar" role="progressbar"
+                     aria-valuemin="1" aria-valuemax="3" aria-valuenow="1" aria-label="Tiến trình cài đặt">
+                    <div class="ins-progress-fill" id="progress-fill"></div>
+                </div>
             </div>
-            <div class="stc-field">
-              <label for="db_port">Port</label>
-              <input id="db_port" name="db_port" type="number" value="3306" required>
-            </div>
-          </div>
-          <div class="stc-field">
-            <label for="db_name">Database name</label>
-            <input id="db_name" name="db_name" required>
-          </div>
-          <div class="stc-field">
-            <label for="db_user">Database username</label>
-            <input id="db_user" name="db_user" required>
-          </div>
-          <div class="stc-field">
-            <label for="db_pass">Database password</label>
-            <input id="db_pass" name="db_pass" type="password">
-          </div>
-          <button class="stc-btn" type="submit">Kiểm tra kết nối</button>
-          <div class="stc-msg" id="msg-1" role="status" aria-live="polite"></div>
-        </form>
-      </section>
 
-      <!-- Bước 2: Tài khoản quản trị -->
-      <section class="stc-step" id="step-2" aria-labelledby="t2">
-        <h2 class="stc-step__title" id="t2" tabindex="-1">Tài khoản quản trị</h2>
-        <p class="stc-step__desc">Tài khoản này có toàn quyền quản trị website.</p>
+            <!-- Bước 1: Database -->
+            <section class="ins-step active" id="step-1" aria-labelledby="t1">
+                <h5 class="title mb-3" id="t1" tabindex="-1">Kết nối database</h5>
+                <p class="mb-3">Nhập thông tin MySQL được tạo trong cPanel của bạn.</p>
 
-        <form id="form-admin" autocomplete="off" novalidate>
-          <div class="stc-field">
-            <label for="admin_name">Họ và tên</label>
-            <input id="admin_name" name="admin_name" required>
-          </div>
-          <div class="stc-field">
-            <label for="admin_username">Tên đăng nhập</label>
-            <input id="admin_username" name="admin_username" required>
-          </div>
-          <div class="stc-field">
-            <label for="admin_email">Email</label>
-            <input id="admin_email" name="admin_email" type="email" required>
-          </div>
-          <div class="stc-field">
-            <label for="admin_password">Mật khẩu (tối thiểu 8 ký tự)</label>
-            <input id="admin_password" name="admin_password" type="password" required>
-          </div>
-          <div class="stc-field">
-            <label for="admin_password_confirm">Xác nhận mật khẩu</label>
-            <input id="admin_password_confirm" name="admin_password_confirm" type="password" required>
-          </div>
-          <button class="stc-btn" type="submit">Lưu thông tin</button>
-          <button class="stc-btn stc-btn--ghost" type="button" id="back-2">Quay lại</button>
-          <div class="stc-msg" id="msg-2" role="status" aria-live="polite"></div>
-        </form>
-      </section>
+                <div class="alert alert-primary mb-4">
+                    <strong>Hướng dẫn trong cPanel &rarr; MySQL Databases:</strong>
+                    <ol>
+                        <li>Tạo một <strong>database</strong> mới.</li>
+                        <li>Tạo một <strong>database user</strong> mới.</li>
+                        <li>Thêm user vào database và chọn <strong>ALL PRIVILEGES</strong>.</li>
+                    </ol>
+                </div>
 
-      <!-- Bước 3: Xác nhận & cài đặt -->
-      <section class="stc-step" id="step-3" aria-labelledby="t3">
-        <h2 class="stc-step__title" id="t3" tabindex="-1">Xác nhận &amp; cài đặt</h2>
-        <p class="stc-step__desc">Kiểm tra lại thông tin rồi bấm "Cài đặt ngay".</p>
+                <form id="form-db" autocomplete="off" novalidate>
+                    <div class="ins-grid">
+                        <div class="ins-col ins-col-6">
+                            <div class="form-group">
+                                <label class="form-label" for="db_host">Database host (<b class="text-danger">*</b>)</label>
+                                <input type="text" class="form-control" id="db_host" name="db_host" value="localhost" required>
+                            </div>
+                        </div>
+                        <div class="ins-col ins-col-6">
+                            <div class="form-group">
+                                <label class="form-label" for="db_port">Port (<b class="text-danger">*</b>)</label>
+                                <input type="number" class="form-control" id="db_port" name="db_port" value="3306" required>
+                            </div>
+                        </div>
+                        <div class="ins-col">
+                            <div class="form-group">
+                                <label class="form-label" for="db_name">Database name (<b class="text-danger">*</b>)</label>
+                                <input type="text" class="form-control" id="db_name" name="db_name" required>
+                            </div>
+                        </div>
+                        <div class="ins-col ins-col-6">
+                            <div class="form-group">
+                                <label class="form-label" for="db_user">Database username (<b class="text-danger">*</b>)</label>
+                                <input type="text" class="form-control" id="db_user" name="db_user" required>
+                            </div>
+                        </div>
+                        <div class="ins-col ins-col-6">
+                            <div class="form-group">
+                                <label class="form-label" for="db_pass">Database password</label>
+                                <input type="password" class="form-control" id="db_pass" name="db_pass">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="pt-4">
+                        <button class="btn btn-primary" type="submit">Kiểm tra kết nối&ensp;<?php echo $ico('db'); ?></button>
+                    </div>
+                    <div class="ins-msg" id="msg-1" role="status" aria-live="polite"></div>
+                </form>
+            </section>
 
-        <div class="stc-sum" id="summary" aria-label="Tóm tắt cấu hình"></div>
+            <!-- Bước 2: Tài khoản quản trị -->
+            <section class="ins-step" id="step-2" aria-labelledby="t2">
+                <h5 class="title mb-3" id="t2" tabindex="-1">Tài khoản quản trị</h5>
+                <p class="mb-3">Tài khoản này có toàn quyền quản trị website.</p>
 
-        <button class="stc-btn" id="do-install" type="button">Cài đặt ngay</button>
-        <button class="stc-btn stc-btn--ghost" type="button" id="back-3">Quay lại</button>
-        <div class="stc-msg" id="msg-3" role="status" aria-live="polite"></div>
-      </section>
+                <form id="form-admin" autocomplete="off" novalidate>
+                    <div class="ins-grid">
+                        <div class="ins-col">
+                            <div class="form-group">
+                                <label class="form-label" for="admin_name">Họ và tên (<b class="text-danger">*</b>)</label>
+                                <input type="text" class="form-control" id="admin_name" name="admin_name" required>
+                            </div>
+                        </div>
+                        <div class="ins-col ins-col-6">
+                            <div class="form-group">
+                                <label class="form-label" for="admin_username">Tên đăng nhập (<b class="text-danger">*</b>)</label>
+                                <input type="text" class="form-control" id="admin_username" name="admin_username" required>
+                            </div>
+                        </div>
+                        <div class="ins-col ins-col-6">
+                            <div class="form-group">
+                                <label class="form-label" for="admin_email">Email (<b class="text-danger">*</b>)</label>
+                                <input type="email" class="form-control" id="admin_email" name="admin_email" required>
+                            </div>
+                        </div>
+                        <div class="ins-col ins-col-6">
+                            <div class="form-group">
+                                <label class="form-label" for="admin_password">Mật khẩu (tối thiểu 8 ký tự) (<b class="text-danger">*</b>)</label>
+                                <input type="password" class="form-control" id="admin_password" name="admin_password" required>
+                            </div>
+                        </div>
+                        <div class="ins-col ins-col-6">
+                            <div class="form-group">
+                                <label class="form-label" for="admin_password_confirm">Xác nhận mật khẩu (<b class="text-danger">*</b>)</label>
+                                <input type="password" class="form-control" id="admin_password_confirm" name="admin_password_confirm" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="pt-4 d-flex gap-2">
+                        <button class="btn btn-primary" type="submit">Lưu thông tin&ensp;<?php echo $ico('right'); ?></button>
+                        <button class="btn btn-dim" type="button" id="back-2"><?php echo $ico('left'); ?>&ensp;Quay lại</button>
+                    </div>
+                    <div class="ins-msg" id="msg-2" role="status" aria-live="polite"></div>
+                </form>
+            </section>
 
-      <!-- Hoàn tất -->
-      <section class="stc-step" id="step-done" aria-labelledby="td">
-        <div class="stc-done">
-          <div class="stc-done__badge" aria-hidden="true">&#10003;</div>
-          <h1 class="stc-step__title" id="td" tabindex="-1">Cài đặt thành công</h1>
-          <p class="stc-step__desc">Website của bạn đã sẵn sàng. Trình cài đặt đã tự khoá để bảo mật.</p>
-          <a class="stc-btn" href="/login">Đăng nhập quản trị</a>
+            <!-- Bước 3: Xác nhận & cài đặt -->
+            <section class="ins-step" id="step-3" aria-labelledby="t3">
+                <h5 class="title mb-3" id="t3" tabindex="-1">Xác nhận &amp; cài đặt</h5>
+                <p class="mb-3">Kiểm tra lại thông tin rồi bấm "Cài đặt ngay".</p>
+
+                <div class="ins-card mb-4">
+                    <div class="ins-card-inner">
+                        <div id="summary" aria-label="Tóm tắt cấu hình"></div>
+                    </div>
+                </div>
+
+                <div class="pt-2 d-flex gap-2">
+                    <button class="btn btn-primary text-nowrap" id="do-install" type="button">Cài đặt ngay&ensp;<?php echo $ico('settings'); ?></button>
+                    <button class="btn btn-dim" type="button" id="back-3"><?php echo $ico('left'); ?>&ensp;Quay lại</button>
+                </div>
+                <div class="ins-msg" id="msg-3" role="status" aria-live="polite"></div>
+            </section>
+
+            <!-- Hoàn tất -->
+            <section class="ins-step" id="step-done" aria-labelledby="td">
+                <div class="pt-4 pb-2 text-center">
+                    <span class="ins-done-icon">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"
+                             fill="none" stroke="currentColor" stroke-width="2.5"
+                             stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 6 9 17l-5-5"/>
+                        </svg>
+                    </span>
+                    <h5 class="title mb-2" id="td" tabindex="-1">Cài đặt thành công</h5>
+                    <p class="mb-4">Website của bạn đã sẵn sàng. Trình cài đặt đã tự khoá để bảo mật.</p>
+                    <a class="btn btn-primary" href="/login">Đăng nhập quản trị&ensp;<?php echo $ico('login'); ?></a>
+                </div>
+            </section>
+
         </div>
-      </section>
-    </div>
-  </main>
+    </main>
+
 </div>
 
-<script src="/assets/js/installer.js" defer></script>
+<script src="/assets/js/installer.js?v=<?php echo $assetV('/assets/js/installer.js'); ?>" defer></script>
 </body>
 </html>

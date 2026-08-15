@@ -468,15 +468,55 @@
 }
 
 /* ---------- Mobile ---------- */
+/* Chiều cao .chat-wrap trên mobile do JS (chat-box.js) ĐO THỰC TẾ và set inline:
+ *   visualViewport.height + offsetTop - chat-wrap.top thực tế - bottom nav visible.
+ * Một nguồn chiều cao duy nhất — visualViewport đã co theo bàn phím nên KHÔNG
+ * trừ keyboard gap lần nữa. CSS dưới đây chỉ là FALLBACK khi JS chưa chạy:
+ * dùng 100dvh (tự co theo toolbar/bàn phím) trừ một khoảng ước lượng, sẽ bị JS
+ * ghi đè ngay khi load bằng giá trị đo được. Desktop không bị ảnh hưởng. */
+
 @media (max-width: 991.98px) {
     .chat-screen {
         padding: 0;
     }
 
+    .chat-screen,
+    .chat-screen .center {
+        width: 100%;
+        max-width: 100%;
+    }
+
     .chat-wrap {
-        min-height: calc(100vh - 110px);
-        max-height: none;
         gap: 0;
+        max-height: none;
+        /* Fallback no-JS: 100dvh đã co theo keyboard/toolbar -> chỉ trừ header +
+         * bottom nav ước lượng MỘT lần, tuyệt đối không trừ vv-offset kép.
+         * JS đo thật và ghi đè inline ngay khi chạy. */
+        min-height: calc(100dvh - 203px);
+        height: calc(100dvh - 203px);
+    }
+
+    .chat-main {
+        border-radius: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Header trong hội thoại luôn bám trên đầu, không bị nội dung đè/che. */
+    .chat-header {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        background: #fff;
+        flex: 0 0 auto;
+    }
+
+    /* Chỉ vùng tin nhắn được cuộn; composer + header không cuộn. */
+    .chat-messages {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
     }
 
     /* Mobile: mặc định chỉ hiển thị panel chat chính */
@@ -494,20 +534,59 @@
         display: none;
     }
 
-    .chat-main {
-        border-radius: 0;
-    }
-
     .chat-back {
         display: inline-flex;
     }
 
+    /* Bong bóng chat không quá rộng; text/URL/emoji dài không tràn. */
     .chat-item .chat-bubble-wrap {
         max-width: 82%;
     }
 
+    .chat-item .chat-bubble {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    /* Composer là flex item dưới cùng của .chat-main; vì .chat-wrap đã trừ
+     * nav-offset + vv-offset nên composer luôn hiển thị ngay trên bottom nav
+     * và bàn phím. Thêm safe-area iOS để không sát mép thanh home. */
     .chat-composer {
-        position: sticky;
-        bottom: 0;
+        background: #fff;
+        flex: 0 0 auto;
+        padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    }
+
+    /* Ảnh đính kèm không tràn khỏi khung. */
+    .chat-item .chat-attachment-img {
+        max-width: 100%;
+        height: auto;
+    }
+
+    /* Preview ảnh nằm trong input-wrap, không che composer. */
+    .chat-attachment-preview img {
+        max-width: 100%;
+        height: auto;
+    }
+
+    /* font-size >= 16px để iOS không auto-zoom khi focus input. */
+    #chat-input {
+        font-size: 16px;
+    }
+}
+
+/* Tablet (791–992px): bottom nav .plugbar ẩn, chỉ còn footer-mobile (~56px) —
+ * fallback no-JS gọn hơn; JS vẫn tự đo và ghi đè. */
+@media (min-width: 791px) and (max-width: 991.98px) {
+    .chat-wrap {
+        min-height: calc(100dvh - 186px);
+        height: calc(100dvh - 186px);
+    }
+}
+
+/* Điện thoại (<=767px): giới hạn bong bóng ~86%. */
+@media (max-width: 767.98px) {
+    .chat-item .chat-bubble-wrap {
+        max-width: 86%;
     }
 }

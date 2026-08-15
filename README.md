@@ -82,6 +82,36 @@ Chỉ cần chạy migration chat (idempotent — chạy lại nhiều lần v�
 mysql DATABASE_NAME < database/migrations/20260812_chat_box.sql
 ```
 
+### Bổ sung superadmin + đăng nhập 2/7 ngày cho website cũ
+
+Với website đã cài từ bản trước, chạy migration sau (idempotent — chạy lại hai
+lần liên tiếp vẫn an toàn, không lỗi, không đổi thêm dữ liệu):
+
+```bash
+mysql DATABASE_NAME < database/migrations/20260814_superadmin_sessions.sql
+```
+
+Migration này làm ba việc:
+
+1. **Bảo đảm luôn có một superadmin ĐANG HOẠT ĐỘNG**: nếu hệ thống không còn
+   superadmin nào `banned = 0` (ví dụ superadmin duy nhất đã bị khoá), migration
+   tự promote tài khoản **admin đang hoạt động có id nhỏ nhất** lên superadmin.
+   Tài khoản `member`/`ctv` không bao giờ được promote. Một superadmin đã bị ban
+   **không** làm migration bỏ qua mãi mãi.
+2. **Bổ sung index cho bảng `auth_tokens`** (`token`, `user_id`, `expires_at`)
+   phục vụ đăng nhập duy trì 2/7 ngày (DB chỉ lưu SHA-256 hash của token).
+3. **Dọn token đã hết hạn** còn sót lại trong `auth_tokens`.
+
+Có thể kiểm tra kết quả sau khi chạy:
+
+```sql
+SELECT id, username, level, banned FROM users WHERE level = 'superadmin';
+SHOW INDEX FROM auth_tokens;
+```
+
+> **Lưu ý:** sao lưu database trước khi chạy migration (xem mục Sao lưu bên
+> dưới). Migration không chứa credential nào và không cần chỉnh sửa file.
+
 ### Chuyển từ `config.php` sang `config.local.php` (tuỳ chọn)
 
 Không bắt buộc. Nếu muốn tách credential khỏi `config.php` (để cập nhật source

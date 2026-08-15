@@ -4,7 +4,7 @@
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/libs/init.php';
 if ($user) {
     if (isset($_POST['id']) && isset($_POST['status'])) {
-        if ($data_user['level'] != 'admin') {
+        if (!is_admin_account($data_user)) {
             exit(JsonMsg('error', 'Bạn không có quyền truy cập vào trang này'));
         } else {
             if ($db->site('status_demo') != 0) {

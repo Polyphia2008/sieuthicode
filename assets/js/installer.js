@@ -30,13 +30,13 @@
 
   function setMsg(box, text, ok) {
     if (!box) { return; }
-    box.className = 'stc-msg ' + (ok ? 'is-ok' : 'is-err');
+    box.className = 'mt-3 alert ' + (ok ? 'alert-success' : 'alert-danger');
     box.textContent = text;
   }
 
   function clearMsg(box) {
     if (!box) { return; }
-    box.className = 'stc-msg';
+    box.className = 'mt-3';
     box.textContent = '';
   }
 
@@ -44,7 +44,7 @@
     if (!btn) { return; }
     if (on) {
       btn.dataset.label = btn.innerHTML;
-      btn.innerHTML = '<span class="stc-spin" aria-hidden="true"></span>Đang xử lý...';
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>&ensp;Đang xử lý...';
       btn.disabled = true;
       btn.setAttribute('aria-busy', 'true');
     } else {
@@ -88,20 +88,20 @@
 
   function showStep(n) {
     currentStep = n;
-    var steps = document.querySelectorAll('.stc-step');
-    for (var i = 0; i < steps.length; i++) { steps[i].classList.remove('is-on'); }
+    var steps = document.querySelectorAll('.nk-stepper-step');
+    for (var i = 0; i < steps.length; i++) { steps[i].classList.remove('active'); }
     var target = (n === 'done') ? $('step-done') : $('step-' + n);
-    if (target) { target.classList.add('is-on'); }
+    if (target) { target.classList.add('active'); }
 
     // Ẩn progress ở màn hình hoàn tất.
-    var prog = document.querySelector('.stc-progress');
+    var prog = $('progress-wrap');
     if (prog) { prog.style.display = (n === 'done') ? 'none' : ''; }
 
     if (n !== 'done') { updateProgress(n); }
 
     // Chuyển focus tới heading của bước mới (a11y).
     if (target) {
-      var heading = target.querySelector('.stc-step__title, h1');
+      var heading = target.querySelector('.title, h1, h5');
       if (heading) {
         heading.setAttribute('tabindex', '-1');
         heading.focus();

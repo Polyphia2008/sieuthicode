@@ -53,6 +53,19 @@ class DB
         return mysqli_insert_id($this->connect);
     }
 
+    /**
+     * Số hàng bị ảnh hưởng bởi câu INSERT/UPDATE/DELETE gần nhất trên kết nối
+     * hiện tại. Dùng cho so-sánh-và-hoán-đổi (compare-and-swap) nguyên tử —
+     * ví dụ rotation token phải kiểm tra affected_rows === 1 để fail-closed
+     * khi token cũ đã bị một request khác đổi trước (race condition).
+     * Trả về -1 nếu truy vấn trước đó lỗi.
+     */
+    public function affected_rows()
+    {
+        $this->connect();
+        return mysqli_affected_rows($this->connect);
+    }
+
     public function dis_connect()
     {
         if ($this->connect instanceof mysqli) {

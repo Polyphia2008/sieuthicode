@@ -27,7 +27,7 @@ if (!$user) {
         </div>
         <div class="sidebar-user-info">
             ';
-    if ($data_user['level'] == 'admin') {
+    if (is_admin_account($data_user)) {
         echo '                <a class="item-link" href="/cpanel/home">
                     <span><img src="/assets/images/control-system.png" width="25px" alt=""></span>
                     <h3>Thông quản trị</h3>

@@ -314,6 +314,118 @@
         });
     }
 
+    // ---- Mobile layout: đo thực tế, MỘT nguồn chiều cao duy nhất ----
+    // Không dùng offset cố định chưa đo. JS đo và set trực tiếp chiều cao khả dụng
+    // cho .chat-wrap (inline style) theo công thức:
+    //   height = (visualViewport.height + visualViewport.offsetTop)
+    //            - top thực tế của chat-wrap (đã gồm header đang hiển thị)
+    //            - chiều cao bottom nav đang visible (.plugbar / .footer-mobile)
+    // visualViewport đã tự co theo bàn phím -> KHÔNG trừ keyboard gap lần nữa
+    // (tránh trừ hai lần như bản 100dvh + vv-offset cũ). Desktop không ảnh hưởng.
+    var MOBILE_MQ = window.matchMedia('(max-width: 991.98px)');
+
+    function firstVisibleElement(ids) {
+        for (var i = 0; i < ids.length; i++) {
+            var el = document.getElementById(ids[i]);
+            if (!el) {
+                continue;
+            }
+            var cs = window.getComputedStyle(el);
+            if (cs.display === 'none' || cs.visibility === 'hidden') {
+                continue;
+            }
+            var rect = el.getBoundingClientRect();
+            if (rect.height > 0) {
+                return el;
+            }
+        }
+        return null;
+    }
+
+    // Top thực tế của khung chat — đã bao gồm mọi header đang hiển thị phía trên.
+    // Fallback (hiếm): đo chính header đang hiển thị (#menu desktop / #menu-mobile mobile).
+    function measureChatTop() {
+        var top = wrapEl ? wrapEl.getBoundingClientRect().top : 0;
+        if (!(top > 0)) {
+            var header = firstVisibleElement(['menu', 'menu-mobile']);
+            top = header ? header.getBoundingClientRect().bottom : 0;
+        }
+        return Math.max(0, top);
+    }
+
+    // Chiều cao bottom nav ĐANG VISIBLE và bám đáy viewport hiện tại.
+    function measureBottomNavHeight(viewportBottom) {
+        var navH = 0;
+        var candidates = document.querySelectorAll('.plugbar, .footer-mobile');
+        for (var i = 0; i < candidates.length; i++) {
+            var el = candidates[i];
+            var cs = window.getComputedStyle(el);
+            if (cs.display === 'none' || cs.visibility === 'hidden') {
+                continue;
+            }
+            if (cs.position !== 'fixed' && cs.position !== 'sticky') {
+                continue;
+            }
+            var rect = el.getBoundingClientRect();
+            if (rect.height <= 0) {
+                continue;
+            }
+            // Chỉ tính nav thực sự bám đáy vùng nhìn thấy; lấy phần chồng lấn lớn nhất.
+            var overlap = viewportBottom - Math.max(rect.top, 0);
+            if (rect.bottom >= viewportBottom - 2 && overlap > 0) {
+                navH = Math.max(navH, Math.min(overlap, rect.height));
+            }
+        }
+        return navH;
+    }
+
+    function updateChatHeight() {
+        if (!wrapEl) {
+            return;
+        }
+        if (!MOBILE_MQ.matches) {
+            // Desktop: bỏ inline height, layout CSS gốc quyết định — không ảnh hưởng.
+            wrapEl.style.height = '';
+            wrapEl.style.minHeight = '';
+            return;
+        }
+        var vv = window.visualViewport;
+        // Nguồn chiều cao duy nhất: visualViewport (đã co theo bàn phím) khi có,
+        // ngược lại window.innerHeight. offsetTop bù phần viewport bị đẩy khi scroll/zoom.
+        var viewportBottom = vv ? (vv.height + vv.offsetTop) : window.innerHeight;
+        var top = measureChatTop();
+        var navH = measureBottomNavHeight(viewportBottom);
+        var avail = Math.max(240, Math.round(viewportBottom - top - navH));
+        wrapEl.style.height = avail + 'px';
+        wrapEl.style.minHeight = avail + 'px';
+        // Giữ composer + tin mới nhất trong tầm nhìn (nếu đang gần đáy).
+        scrollToBottom(false);
+    }
+
+    updateChatHeight();
+    // Script này được chèn TRƯỚC footer (nơi render .plugbar/.footer-mobile),
+    // nên lần đo đầu có thể chưa thấy bottom nav -> đo lại khi DOM parse xong
+    // và khi trang load hoàn tất để trừ đúng chiều cao nav (tránh chồng lấn).
+    document.addEventListener('DOMContentLoaded', updateChatHeight);
+    window.addEventListener('load', updateChatHeight);
+    window.addEventListener('resize', updateChatHeight);
+    window.addEventListener('orientationchange', function () {
+        // chờ orientation settle rồi đo lại
+        setTimeout(updateChatHeight, 150);
+    });
+    // Trình duyệt mobile có thể auto-scroll document khi focus ô nhập;
+    // đo lại theo vị trí scroll thực tế để wrap không bị top âm / thừa chiều cao.
+    window.addEventListener('scroll', updateChatHeight, { passive: true });
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', updateChatHeight);
+        window.visualViewport.addEventListener('scroll', updateChatHeight);
+    }
+    // Căn lại ngay khi bàn phím ảo mở/đóng quanh ô nhập trên mobile.
+    inputEl.addEventListener('focus', function () {
+        setTimeout(updateChatHeight, 300); // chờ bàn phím animate xong
+    });
+    inputEl.addEventListener('blur', updateChatHeight);
+
     // ---- Khởi động ----
     loadInitial();
     pollTimer = setInterval(poll, POLL_INTERVAL);

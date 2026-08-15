@@ -593,6 +593,7 @@ function installer_planned_tables()
     $files = [
         APP_ROOT . '/shoprobloxv4 (2).sql',
         APP_ROOT . '/database/migrations/20260812_chat_box.sql',
+        APP_ROOT . '/database/migrations/20260814_superadmin_sessions.sql',
     ];
     foreach ($files as $file) {
         if (!is_file($file) || !is_readable($file)) {

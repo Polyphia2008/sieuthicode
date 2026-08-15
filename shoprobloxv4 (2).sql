@@ -1166,7 +1166,7 @@ CREATE TABLE `users` (
 
 
 INSERT INTO `users` (`id`, `username`, `password`, `level`, `ctv`, `token`, `banned`, `create_date`, `secretkey`, `status_2fa`) VALUES
-(1, 'admin', '!', 'admin', 0, '', 0, NOW(), '', 0);
+(1, 'admin', '!', 'superadmin', 0, '', 0, NOW(), '', 0);
 
 -- --------------------------------------------------------
 

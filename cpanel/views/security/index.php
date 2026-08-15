@@ -3,7 +3,7 @@
 
 $title = 'Dashboard';
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/cpanel/views/header.php';
-if (isset($_POST['AddIP']) && $data_user['level'] == 'admin') {
+if (isset($_POST['AddIP']) && is_admin_account($data_user)) {
     if ($db->site('status_demo') != 0) {
         exit('<script type="text/javascript">if(!alert("Đây là trang web demo bạn không thể thực hiện chức năng này !")){window.history.back().location.reload();}</script>');
     } else {
@@ -16,7 +16,7 @@ if (isset($_POST['AddIP']) && $data_user['level'] == 'admin') {
         }
     }
 } else {
-    if (isset($_POST['SaveSettings']) && $data_user['level'] == 'admin') {
+    if (isset($_POST['SaveSettings']) && is_admin_account($data_user)) {
         if ($db->site('status_demo') != 0) {
             exit('<script type="text/javascript">if(!alert("Đây là trang web demo bạn không thể thực hiện chức năng này !")){window.history.back().location.reload();}</script>');
         } else {

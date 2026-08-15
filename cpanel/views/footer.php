@@ -2,7 +2,7 @@
 // statically decompiled from footer.php  [structured; all 1 record(s) structured]
 
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/libs/init.php';
-if (!$user || $data_user['level'] != 'admin') {
+if (!$user || !is_admin_account($data_user)) {
     new Redirect('/');
     exit();
 } else {

@@ -131,7 +131,7 @@ function installer_handle_save_admin()
     $password = (string) ($_POST['admin_password'] ?? '');
     $confirm = (string) ($_POST['admin_password_confirm'] ?? '');
 
-    // Không tin role từ client — installer luôn tạo level = admin.
+    // Không tin role từ client — installer luôn tạo level = superadmin
     if ($name === '' || mb_strlen($name) > 100) {
         installer_json(false, 'Vui lòng nhập họ và tên hợp lệ.', [], 422);
     }
@@ -260,6 +260,16 @@ function installer_handle_install()
             @unlink(installer_config_path()); // không để config dở
             mysqli_close($mysqli);
             installer_json(false, 'Import migration chat thất bại. ' . $err, [], 500);
+        }
+        // 2b) Migration superadmin (idempotent): fresh install đã có superadmin từ
+        // base SQL nên câu UPDATE này là no-op; vẫn chạy để đồng nhất pipeline.
+        if (!installer_import_sql($mysqli, APP_ROOT . '/database/migrations/20260814_superadmin_sessions.sql', $created, $err)) {
+            installer_journal_add_created($created);
+            installer_rollback_created($mysqli, $created);
+            installer_journal_clear();
+            @unlink(installer_config_path()); // không để config dở
+            mysqli_close($mysqli);
+            installer_json(false, 'Import migration superadmin thất bại. ' . $err, [], 500);
         }
         // Cập nhật journal với danh sách bảng đã tạo (phòng trường hợp bị kill
         // sau đây — ví dụ ngay trước bước tạo admin).
@@ -449,7 +459,7 @@ function installer_upsert_admin($mysqli, array $admin, &$err = '')
         $stmt = mysqli_prepare(
             $mysqli,
             'UPDATE `users` SET `username` = ?, `password` = ?, `name` = ?, `email` = ?, '
-            . "`level` = 'admin', `token` = ?, `banned` = 0, `status_2fa` = 0, `create_date` = ? WHERE `id` = ?"
+            . "`level` = 'superadmin', `token` = ?, `banned` = 0, `status_2fa` = 0, `create_date` = ? WHERE `id` = ?"
         );
         if (!$stmt) {
             $err = 'Không cập nhật được tài khoản quản trị.';
@@ -473,7 +483,7 @@ function installer_upsert_admin($mysqli, array $admin, &$err = '')
     $stmt = mysqli_prepare(
         $mysqli,
         'INSERT INTO `users` (`username`, `password`, `name`, `email`, `level`, `token`, `banned`, `create_date`, `secretkey`, `status_2fa`, `money`) '
-        . "VALUES (?, ?, ?, ?, 'admin', ?, 0, ?, '', 0, 0)"
+        . "VALUES (?, ?, ?, ?, 'superadmin', ?, 0, ?, '', 0, 0)"
     );
     if (!$stmt) {
         $err = 'Không tạo được tài khoản quản trị.';
@@ -507,6 +517,6 @@ function installer_verify_admin_login($mysqli, array $admin)
     }
     $hash = sha1((string) $admin['password']);
     return hash_equals((string) $row['password'], $hash)
-        && $row['level'] === 'admin'
+        && $row['level'] === 'superadmin'
         && (int) $row['banned'] === 0;
 }

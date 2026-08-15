@@ -45,8 +45,8 @@ if (!$conversation) {
     chat_attachment_fail(404, 'Not Found');
 }
 
-// 3. Quyền: admin xem tất cả; member chỉ xem conversation của mình.
-$isAdmin = ($data_user['level'] ?? 'member') === 'admin';
+// 3. Quyền: admin/superadmin xem tất cả; member chỉ xem conversation của mình.
+$isAdmin = is_admin_account($data_user);
 if (!$isAdmin && (int) $conversation['user_id'] !== (int) $data_user['id']) {
     chat_attachment_fail(403, 'Forbidden');
 }

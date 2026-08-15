@@ -4,7 +4,7 @@
 $title = 'Nhật ký hoa hồng';
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/cpanel/views/header.php';
 $sotin1trang = 12;
-if (isset($_GET['page']) && $data_user['level'] == 'admin') {
+if (isset($_GET['page']) && is_admin_account($data_user)) {
     $page = max(1, (int) $_GET['page']);
 } else {
     $page = 1;

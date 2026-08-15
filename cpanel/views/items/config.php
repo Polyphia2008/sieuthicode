@@ -3,7 +3,7 @@
 
 $title = 'Dashboard';
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/cpanel/views/header.php';
-if (isset($_POST['SaveSettings']) && $data_user['level'] == 'admin') {
+if (isset($_POST['SaveSettings']) && is_admin_account($data_user)) {
     if (check_img('thumb_items')) {
         $rand = random('0123456789QWERTYUIOPASDGHJKLZXCVBNM', 3);
         $uploads_dir = '../../../upload/theme/thumb_' . $rand . '.png';

@@ -3,7 +3,7 @@
 
 $title = 'Dashboard';
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/cpanel/views/header.php';
-if (isset($_GET['id']) && $data_user['level'] == 'admin') {
+if (isset($_GET['id']) && is_admin_account($data_user)) {
     $id = Anti_xss($_GET['id']);
     $query = $db->get_row('SELECT * FROM `accounts` WHERE `id` = \'' . $id . '\' ');
     if (!$query) {

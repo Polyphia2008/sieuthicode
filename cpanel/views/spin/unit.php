@@ -4,7 +4,7 @@
 $title = 'Dashboard';
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/cpanel/views/header.php';
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/cpanel/views/sidebar.php';
-if (isset($_GET['limit']) && $data_user['level'] == 'admin') {
+if (isset($_GET['limit']) && is_admin_account($data_user)) {
     $limit = min(200, max(1, (int) $_GET['limit']));
 } else {
     $limit = 12;

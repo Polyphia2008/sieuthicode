@@ -4,7 +4,7 @@
 $title = 'Dashboard';
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/cpanel/views/header.php';
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/cpanel/views/sidebar.php';
-if (isset($_GET['id']) && $data_user['level'] == 'admin') {
+if (isset($_GET['id']) && is_admin_account($data_user)) {
     $id = Anti_xss($_GET['id']);
     $row = $db->get_row('SELECT * FROM `tbl_coupons` WHERE `id` = \'' . $id . '\'');
     if (!$row) {
@@ -13,7 +13,7 @@ if (isset($_GET['id']) && $data_user['level'] == 'admin') {
 } else {
     new Redirect('/cpanel/coupons');
 }
-if (isset($_POST['SaveCoupon']) && $data_user['level'] == 'admin') {
+if (isset($_POST['SaveCoupon']) && is_admin_account($data_user)) {
     $isInsert = $db->update('tbl_coupons', ['amount' => Anti_xss($_POST['amount']), 'min' => Anti_xss($_POST['min']), 'max' => Anti_xss($_POST['max']), 'discount' => Anti_xss($_POST['discount']), 'updatedate' => gettime()], ' `id` = \'' . $row['id'] . '\' ');
     if ($isInsert) {
         insert_log($data_user['id'], 'Chỉnh sửa mã giảm giá (' . $row['code'] . ' ID ' . $row['id'] . ').');

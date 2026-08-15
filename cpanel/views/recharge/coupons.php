@@ -4,7 +4,7 @@
 $title = 'Dashboard';
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/cpanel/views/header.php';
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/cpanel/views/sidebar.php';
-if (isset($_POST['AddCoupon']) && $data_user['level'] == 'admin') {
+if (isset($_POST['AddCoupon']) && is_admin_account($data_user)) {
     $isInsert = $db->insert('tbl_coupons', ['code' => Anti_xss($_POST['code']), 'amount' => Anti_xss($_POST['amount']), 'min' => Anti_xss($_POST['min']), 'max' => Anti_xss($_POST['max']), 'discount' => Anti_xss($_POST['discount']), 'createdate' => gettime(), 'updatedate' => gettime(), 'used' => 0]);
     if ($isInsert) {
         insert_log($data_user['id'], 'Thêm mã giảm giá (' . Anti_xss($_POST['code']) . ') vào hệ thống.');

@@ -5,7 +5,7 @@ require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/libs/init.php';
 if (!$user) {
     exit(JsonMsg('error', 'Vui lòng đăng nhập để thực hiện'));
 } else {
-    if ($data_user['level'] != 'admin') {
+    if (!is_admin_account($data_user)) {
         exit(JsonMsg('error', 'Bạn không có quyền truy cập vào trang này'));
     } else {
         if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] != $_SESSION['csrf_token']) {

@@ -4,7 +4,7 @@
 $title = 'Dashboard';
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/cpanel/views/header.php';
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/cpanel/views/sidebar.php';
-if (isset($_POST['AddCategory']) && $data_user['level'] == 'admin') {
+if (isset($_POST['AddCategory']) && is_admin_account($data_user)) {
     if ($db->site('status_demo') != 0) {
         exit('<script type="text/javascript">if(!alert("Đây là trang web demo bạn không thể thực hiện chức năng này !")){window.history.back().location.reload();}</script>');
     } else {

@@ -69,7 +69,7 @@ function chat_require_login()
 function chat_require_admin()
 {
     $account = chat_require_login();
-    if (($account['level'] ?? 'member') !== 'admin') {
+    if (!is_admin_account($account)) {
         chat_json('error', 'Bạn không có quyền truy cập chức năng này', null, 403);
     }
     return $account;
@@ -140,7 +140,7 @@ function chat_get_conversation_for($conversationId, $account)
     if (!$conversation) {
         chat_json('error', 'Hội thoại không tồn tại', null, 404);
     }
-    $isAdmin = ($account['level'] ?? 'member') === 'admin';
+    $isAdmin = is_admin_account($account);
     if (!$isAdmin && (int) $conversation['user_id'] !== (int) $account['id']) {
         chat_json('error', 'Bạn không có quyền truy cập hội thoại này', null, 403);
     }

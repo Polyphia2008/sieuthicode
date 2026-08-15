@@ -4,9 +4,12 @@
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/libs/init.php';
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if ($user) {
-        if ($data_user['level'] != 'admin') {
+        if (!is_admin_account($data_user)) {
+            http_response_code(403);
             exit(JsonMsg('error', 'Bạn không có quyền truy cập vào trang này'));
         } else {
+            // Bắt buộc CSRF token hợp lệ cho mọi thao tác cập nhật (admin/superadmin).
+            verify_csrf_token(true);
             if ($db->site('status_demo') != 0) {
                 exit(JsonMsg('error', 'Đây là trang web demo bạn không thể thực hiện chức năng này !'));
             } else {
@@ -251,6 +254,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 }
                             }
                         case 'removeBank':
+                            if (!is_superadmin_account($data_user)) {
+                                http_response_code(403);
+                                exit(JsonMsg('error', 'Chức năng này chỉ dành cho Superadmin'));
+                            }
                             $check_bank = $db->get_row('SELECT * FROM `bank` WHERE `id` = ' . $id);
                             if (!$check_bank) {
                                 exit(JsonMsg('error', 'Ngân hàng không tồn tại'));

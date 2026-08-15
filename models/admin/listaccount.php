@@ -10,7 +10,7 @@ $type = Anti_xss($_POST['type']);
 if (!$user) {
     exit(JsonMsg('error', 'Bạn chưa đăng nhập'));
 } else {
-    if ($data_user['level'] != 'admin') {
+    if (!is_admin_account($data_user)) {
         exit(JsonMsg('error', 'Bạn không có quyền truy cập trang này'));
     } else {
         $sql_type = '';

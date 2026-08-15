@@ -2,8 +2,16 @@
 // statically decompiled from card-config.php  [structured; all 1 record(s) structured]
 
 $title = 'Dashboard';
+require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/libs/init.php';
+// Cấu hình nạp thẻ cào là chức năng nhạy cảm: chỉ superadmin (cả GET lẫn POST).
+// Gọi require_superadmin TRƯỚC khi render header để không xuất HTML trước status 403.
+require_superadmin(false);
+// CSRF gate phải chạy TRƯỚC mọi output (header.php) để HTTP 419 có hiệu lực.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['SaveSettings'])) {
+    verify_csrf_token();
+}
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/cpanel/views/header.php';
-if (isset($_POST['SaveSettings']) && $data_user['level'] == 'admin') {
+if (isset($_POST['SaveSettings']) && is_superadmin_account($data_user)) {
     foreach ($_POST as $__key => $value) {
         $key = $__key;
         $db->update('options', ['value' => $value], ' `key` = \'' . $key . '\' ');
@@ -34,6 +42,9 @@ if (isset($_POST['SaveSettings']) && $data_user['level'] == 'admin') {
             </div>
             <div class="block-content">
                 <form action="" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="';
+    echo generate_csrf_token();
+    echo '">
                     <div class="row mb-3">
                         <div class="col-lg-12 col-xl-6">
                             <div class="row mb-4">

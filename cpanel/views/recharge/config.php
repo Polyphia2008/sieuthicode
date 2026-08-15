@@ -2,15 +2,26 @@
 // statically decompiled from config.php  [structured; all 1 record(s) structured]
 
 $title = 'Dashboard';
+require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/libs/init.php';
+// Cấu hình ngân hàng là chức năng nhạy cảm: chỉ superadmin (cả GET lẫn POST).
+// Gọi require_superadmin TRƯỚC khi render header để không xuất HTML trước status 403.
+require_superadmin(false);
+// CSRF gate phải chạy TRƯỚC mọi output (header.php) để http_response_code(419)
+// có hiệu lực — nếu check sau khi header đã in, status sẽ bị nuốt.
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['SaveSettings']) || isset($_POST['ThemNganHang'])) {
+        verify_csrf_token(); // missing/empty/wrong -> HTTP 419 + exit (chưa in gì)
+    }
+}
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/cpanel/views/header.php';
-if (isset($_POST['SaveSettings']) && $data_user['level'] == 'admin') {
+if (isset($_POST['SaveSettings']) && is_superadmin_account($data_user)) {
     foreach ($_POST as $__key => $value) {
         $key = $__key;
         $db->update('options', ['value' => $value], ' `key` = \'' . $key . '\' ');
     }
     exit('<script type="text/javascript">if(!alert("Lưu thành công !")){window.history.back().location.reload();}</script>');
 } else {
-    if (isset($_POST['ThemNganHang']) && $data_user['level'] == 'admin') {
+    if (isset($_POST['ThemNganHang']) && is_superadmin_account($data_user)) {
         $isInsert = $db->insert('bank', ['short_name' => strtoupper(Anti_xss($_POST['short_name'])), 'accountNumber' => Anti_xss($_POST['accountNumber']), 'accountName' => Anti_xss($_POST['accountName']), 'url_api' => Anti_xss($_POST['urlApi'])]);
         if ($isInsert) {
             insetLog($data_user['id'], 'Thêm ngân hàng (' . $config_listbank[Anti_xss($_POST['short_name'])] . ' - ' . $_POST['accountNumber'] . ') vào hệ thống.');
@@ -108,6 +119,9 @@ if (isset($_POST['SaveSettings']) && $data_user['level'] == 'admin') {
             </div>
             <div class="block-content">
                 <form action="" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="';
+        echo generate_csrf_token();
+        echo '">
                     <div class="row">
                         <div class="col-lg-12 col-xl-6">
                             <div class="row mb-4">
@@ -188,6 +202,9 @@ if (isset($_POST['SaveSettings']) && $data_user['level'] == 'admin') {
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form action="" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="';
+        echo generate_csrf_token();
+        echo '">
                     <div class="modal-body">
                         <div class="row mb-4">
                             <label class="col-sm-4 col-form-label">Ngân hàng <span class="text-danger">*</span></label>
@@ -275,6 +292,7 @@ if (isset($_POST['SaveSettings']) && $data_user['level'] == 'admin') {
                 dataType: "JSON",
                 data: {
                     action: \'removeBank\',
+                    csrf_token: csrf_token,
                     id: id
                 },
                 success: function(result) {

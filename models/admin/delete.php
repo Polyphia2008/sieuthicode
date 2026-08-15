@@ -41,27 +41,42 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 http_response_code(403);
                                 exit(JsonMsg('error', 'Không thể xoá tài khoản superadmin này'));
                             }
-                            // TOCTOU: nếu xoá một superadmin đang ACTIVE thì phải khoá
-                            // hàng + đếm lại trong transaction — hai request đồng thời
-                            // xoá hai superadmin cuối sẽ được serialize, request sau bị chặn.
+                            // TOCTOU: nếu xoá một superadmin đang ACTIVE thì phải
+                            // khoá TOÀN BỘ active superadmin (không chỉ hàng target)
+                            // để serialize hai request đồng thời xoá hai superadmin
+                            // khác nhau A/B — chỉ khoá hàng target thì cả hai cùng
+                            // đếm thấy 2 và cùng xoá thành công => 0 active superadmin.
                             $__isActiveSuper = is_superadmin_account($check_user)
                                 && (int) ($check_user['banned'] ?? 0) === 0;
                             if ($__isActiveSuper) {
-                                $db->query('START TRANSACTION');
-                                $db->get_row('SELECT `id` FROM `users` WHERE `id` = \''
-                                    . (int) $check_user['id'] . '\' FOR UPDATE');
+                                superadmin_guard_begin($db);
+                                // Re-read target TRONG transaction: target phải còn
+                                // tồn tại và vẫn là active superadmin (không tin dữ
+                                // liệu $check_user đã đọc trước transaction).
+                                $lockedTarget = $db->get_row('SELECT `id`, `level`, `banned`, `username` FROM `users` WHERE `id` = \''
+                                    . (int) $check_user['id'] . '\'');
+                                $targetStillActive = is_array($lockedTarget)
+                                    && ($lockedTarget['level'] ?? '') === 'superadmin'
+                                    && (int) ($lockedTarget['banned'] ?? 1) === 0;
+                                if (!$targetStillActive) {
+                                    superadmin_guard_rollback($db);
+                                    http_response_code(403);
+                                    exit(JsonMsg('error', 'Tài khoản superadmin này vừa được thay đổi bởi một thao tác khác'));
+                                }
+                                // Đếm lại số ACTIVE superadmin bên trong transaction
+                                // (sau khi đã khoá toàn bộ) để quyết định về 0 không.
                                 if (count_superadmins($db) <= 1) {
-                                    $db->query('ROLLBACK');
+                                    superadmin_guard_rollback($db);
                                     http_response_code(403);
                                     exit(JsonMsg('error', 'Không thể xoá superadmin cuối cùng của hệ thống'));
                                 }
                                 $isRemove = $db->remove('users', ' `id` = \'' . $id . '\' ');
                                 if ($isRemove) {
-                                    $db->query('COMMIT');
-                                    insert_log($data_user['id'], 'Thực hiện xóa thành viên [' . $check_user['username'] . '] ra khỏi hệ thống');
+                                    superadmin_guard_commit($db);
+                                    insert_log($data_user['id'], 'Thực hiện xóa thành viên [' . $lockedTarget['username'] . '] ra khỏi hệ thống');
                                     exit(JsonMsg('success', 'Xóa người dùng thành công'));
                                 }
-                                $db->query('ROLLBACK');
+                                superadmin_guard_rollback($db);
                                 exit(JsonMsg('error', 'Đã xảy ra lỗi khi xóa người dùng'));
                             }
                             // Banned superadmin / admin / member: xoá trực tiếp (không ảnh

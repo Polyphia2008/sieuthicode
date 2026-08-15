@@ -131,6 +131,64 @@ if (!function_exists('is_last_superadmin')) {
     }
 }
 
+if (!function_exists('superadmin_guard_begin')) {
+    /**
+     * Bắt đầu transaction và khoá TOÀN BỘ active superadmin (FOR UPDATE).
+     *
+     * TOCTOU fix: chỉ khoá hàng target (SELECT ... WHERE id = N FOR UPDATE)
+     * KHÔNG serialize hai request thao tác trên hai superadmin khác nhau A/B —
+     * mỗi request khoá một hàng riêng, cả hai cùng đếm thấy 2 và cùng thành
+     * công => hệ thống rơi về 0 active superadmin.
+     *
+     * Hàm này khoá MỌI hàng active superadmin theo thứ tự ổn định (ORDER BY
+     * id) nên mọi thao tác demote/ban/delete superadmin đều tranh chấp trên
+     * CÙNG tập khoá => serialize hoàn toàn. Request thứ hai block tới khi
+     * request đầu COMMIT/ROLLBACK, rồi đọc lại count đã thay đổi => bị chặn.
+     *
+     * get_list() (classes/db.php) buffer TOÀN BỘ result (fetch hết + free) nên
+     * mọi row lock InnoDB thực sự được giữ tới khi COMMIT/ROLLBACK.
+     *
+     * Trả về mảng id (int[]) của các active superadmin đang bị khoá.
+     * @param DB $db
+     */
+    function superadmin_guard_begin($db)
+    {
+        $db->query('START TRANSACTION');
+        $rows = $db->get_list(
+            "SELECT `id` FROM `users` WHERE `level` = 'superadmin' AND `banned` = 0 ORDER BY `id` FOR UPDATE"
+        );
+        $ids = [];
+        foreach ($rows as $r) {
+            $ids[] = (int) $r['id'];
+        }
+        return $ids;
+    }
+}
+
+if (!function_exists('superadmin_guard_rollback')) {
+    /**
+     * Hoàn tác transaction đã mở bởi superadmin_guard_begin(). Gọi ROLLBACK
+     * trên mọi error path sau START TRANSACTION.
+     * @param DB $db
+     */
+    function superadmin_guard_rollback($db)
+    {
+        $db->query('ROLLBACK');
+    }
+}
+
+if (!function_exists('superadmin_guard_commit')) {
+    /**
+     * Commit transaction đã mở bởi superadmin_guard_begin() sau khi thao tác
+     * UPDATE/DELETE đã thành công.
+     * @param DB $db
+     */
+    function superadmin_guard_commit($db)
+    {
+        $db->query('COMMIT');
+    }
+}
+
 if (!function_exists('verify_csrf_token')) {
     /**
      * Kiểm tra CSRF token của form/AJAX. Token được generate_csrf_token()

@@ -111,28 +111,39 @@ if (isset($_POST['btnCongTien']) && is_admin_account($data_user)) {
                         && (int) ($user['banned'] ?? 0) === 0
                         && ($newLevel !== 'superadmin' || (string) ($_POST['banned'] ?? '0') === '1');
 
-                    // TOCTOU: khoá hàng users của target trong một transaction, đếm
-                    // lại số ACTIVE superadmin bên trong khoá, rồi mới UPDATE. Hai
-                    // request đồng thời demote/ban hai superadmin sẽ được serialize
-                    // qua row-lock — request sau thấy count đã đổi và bị chặn.
+                    // TOCTOU: khoá TOÀN BỘ active superadmin (không chỉ hàng
+                    // target) để serialize hai request đồng thời demote/ban hai
+                    // superadmin khác nhau A/B — chỉ khoá hàng target thì cả hai
+                    // cùng đếm thấy 2 và cùng thành công => 0 active superadmin.
                     if ($__wouldLoseLastActive) {
-                        $db->query('START TRANSACTION');
-                        // Khoá hàng target (ngăn request khác sửa cùng lúc).
-                        $db->get_row('SELECT `id` FROM `users` WHERE `id` = \''
-                            . (int) $user['id'] . '\' FOR UPDATE');
+                        superadmin_guard_begin($db);
+                        // Re-read target TRONG transaction (không tin dữ liệu đã
+                        // đọc trước transaction): target phải còn tồn tại và vẫn
+                        // là active superadmin.
+                        $lockedTarget = $db->get_row('SELECT `id`, `level`, `banned` FROM `users` WHERE `id` = \''
+                            . (int) $user['id'] . '\'');
+                        $targetStillActive = is_array($lockedTarget)
+                            && ($lockedTarget['level'] ?? '') === 'superadmin'
+                            && (int) ($lockedTarget['banned'] ?? 1) === 0;
+                        if (!$targetStillActive) {
+                            superadmin_guard_rollback($db);
+                            exit('<script type="text/javascript">if(!alert("Tài khoản superadmin này vừa được thay đổi bởi một thao tác khác!")){window.history.back().location.reload();}</script>');
+                        }
+                        // Đếm lại số ACTIVE superadmin bên trong transaction (sau
+                        // khi đã khoá toàn bộ) để quyết định có về 0 hay không.
                         if (count_superadmins($db) <= 1) {
-                            $db->query('ROLLBACK');
+                            superadmin_guard_rollback($db);
                             exit('<script type="text/javascript">if(!alert("Không thể hạ quyền hoặc khoá superadmin cuối cùng của hệ thống!")){window.history.back().location.reload();}</script>');
                         }
                         $isUpdate = $db->update('users', ['username' => Anti_xss($_POST['username']), 'level' => Anti_xss($newLevel), 'banned' => Anti_xss($_POST['banned']), 'token' => Anti_xss($_POST['token']), 'email' => Anti_xss($_POST['email']), 'cost' => Anti_xss($_POST['cost']), 'phone' => Anti_xss($_POST['phone']), 'ctv' => Anti_xss($_POST['ctv']), 'ctv_account' => Anti_xss($_POST['ctv_account']), 'ctv_boosting' => Anti_xss($_POST['ctv_boosting']), 'chietkhau_banacc' => Anti_xss($_POST['chietkhau_banacc']), 'maxprice' => Anti_xss($_POST['maxprice']), 'role_category' => null, 'status_2fa' => Anti_xss($_POST['status_2fa']), 'chietkhau' => Anti_xss($_POST['chietkhau']), 'login_attempts' => 0], ' `id` = \'' . $user['id'] . '\' ');
                         if ($isUpdate) {
-                            $db->query('COMMIT');
+                            superadmin_guard_commit($db);
                             if (!empty($_POST['password'])) {
                                 $db->update('users', ['password' => sha1(Anti_xss($_POST['password']))], ' `id` = \'' . $user['id'] . '\' ');
                             }
                             exit('<script type="text/javascript">if(!alert("Cập nhật thông tin thành công")){window.history.back().location.reload();}</script>');
                         }
-                        $db->query('ROLLBACK');
+                        superadmin_guard_rollback($db);
                         exit('<script type="text/javascript">if(!alert("Cập nhật thông tin thất bại")){window.history.back().location.reload();}</script>');
                     }
 

@@ -268,9 +268,9 @@ if (isset($_POST['AddPromotion']) && is_admin_account($data_user)) {
             },
             success: function(response) {
                 if (response.status == \'success\') {
-                    showMessage(\'success\', \'Mục đã được xóa thành công \' + id);
+                    showMessage(\'Mục đã được xóa thành công \' + id, \'success\');
                 } else {
-                    showMessage(\'error\', \'Đã xảy ra lỗi khi xóa mục \' + id);
+                    showMessage(\'Đã xảy ra lỗi khi xóa mục \' + id, \'error\');
                 }
             }
         });

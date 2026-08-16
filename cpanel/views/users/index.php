@@ -499,12 +499,12 @@ if (isset($_POST['AddUser']) && is_admin_account($data_user)) {
                     },
                     success: function(respone) {
                         if (respone.status == \'success\') {
-                            showMessage(\'error\', respone.msg);
+                            showMessage(respone.msg, \'error\');
                             $(\'#logoutALL\').html(
                                 \'<i class="fas fa-right-from-bracket mr-1"></i>THOÁT TẤT CẢ\').prop(
                                 \'disabled\', false);
                         } else {
-                            showMessage(\'error\', respone.msg);
+                            showMessage(respone.msg, \'error\');
                         }
                     },
                     error: function() {
@@ -584,9 +584,9 @@ if (isset($_POST['AddUser']) && is_admin_account($data_user)) {
             },
             success: function(response) {
                 if (response.status == \'success\') {
-                    showMessage(\'success\', \'Mục đã được xóa thành công \' + id);
+                    showMessage(\'Mục đã được xóa thành công \' + id, \'success\');
                 } else {
-                    showMessage(\'error\', \'Đã xảy ra lỗi khi xóa mục \' + id);
+                    showMessage(\'Đã xảy ra lỗi khi xóa mục \' + id, \'error\');
                 }
             }
         });

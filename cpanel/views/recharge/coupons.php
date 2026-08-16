@@ -372,9 +372,9 @@ if (isset($_POST['AddCoupon']) && is_admin_account($data_user)) {
             },
             success: function(response) {
                 if (response.status == \'success\') {
-                    showMessage(\'success\', \'Mã giảm giá xóa thành công \' + id);
+                    showMessage(\'Mã giảm giá xóa thành công \' + id, \'success\');
                 } else {
-                    showMessage(\'error\', \'Đã xảy ra lỗi khi xóa mục \' + id);
+                    showMessage(\'Đã xảy ra lỗi khi xóa mục \' + id, \'error\');
                 }
             }
         });

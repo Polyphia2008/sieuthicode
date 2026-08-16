@@ -65,6 +65,9 @@ if (!$user || !is_admin_account($data_user)) {
     <meta name="author" content="';
     echo $db->site('author');
     echo '">
+    <meta name="csrf-token" content="';
+    echo htmlspecialchars(generate_csrf_token(), ENT_QUOTES, 'UTF-8');
+    echo '">
     <link rel="icon" href="';
     echo DOMAIN . $db->site('favicon');
     echo '" type="image/x-icon" />
@@ -88,9 +91,114 @@ if (!$user || !is_admin_account($data_user)) {
     <script src="https://cdn.datatables.net/buttons/2.2.3/js/buttons.print.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        var csrf_token = "';
-    echo generate_csrf_token();
-    echo '"
+        // Token lay tu session qua json_encode de tranh loi escape/XSS khi
+        // render vao JavaScript. KHONG log, KHONG dua vao URL.
+        window.csrf_token = ';
+    echo json_encode(generate_csrf_token(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+    echo ';
+        var csrf_token = window.csrf_token; // backward-compatible cho caller cu
+
+        // Nguon token thong nhat: uu tien meta tag, fallback window.csrf_token.
+        window.getAdminCsrfToken = function () {
+            var meta = document.querySelector(\'meta[name="csrf-token"]\');
+            var token = meta ? String(meta.getAttribute(\'content\') || \'\') : \'\';
+            if (!token && typeof window.csrf_token === \'string\') {
+                token = window.csrf_token;
+            }
+            return token;
+        };
+
+        // Prefilter GIOI HAN NGHIEM: chi tu dong gan csrf_token cho POST
+        // same-origin toi dung 2 endpoint noi bo /model/admin/delete va
+        // /model/admin/update. Khong ap dung cho CDN/API/domain khac,
+        // khong ghi de csrf_token da co, fail-closed khi khong co token.
+        (function () {
+            function isTargetAdminEndpoint(url) {
+                var parsed;
+                try {
+                    parsed = new URL(url, window.location.href);
+                } catch (e) {
+                    return false;
+                }
+                if (parsed.origin !== window.location.origin) {
+                    return false;
+                }
+                var allowed = [
+                    \'/model/admin/delete\',
+                    \'/model/admin/delete/\',
+                    \'/model/admin/update\',
+                    \'/model/admin/update/\'
+                ];
+                return allowed.indexOf(parsed.pathname) !== -1;
+            }
+
+            function notifyMissingToken() {
+                var msg = \'Không tìm thấy mã bảo mật, vui lòng tải lại trang\';
+                if (typeof Swal !== \'undefined\' && Swal && typeof Swal.fire === \'function\') {
+                    Swal.fire(\'Thất Bại\', msg, \'error\');
+                } else if (typeof showMessage === \'function\') {
+                    try { showMessage(msg, \'error\'); } catch (e) { alert(msg); }
+                } else {
+                    alert(msg);
+                }
+            }
+
+            function attachToken(options) {
+                var token = window.getAdminCsrfToken();
+                if (!token) {
+                    return false; // fail-closed: caller phai huy request
+                }
+                var data = options.data;
+                if (typeof FormData !== \'undefined\' && data instanceof FormData) {
+                    if (!data.has(\'csrf_token\')) {
+                        data.append(\'csrf_token\', token);
+                    }
+                } else if (typeof data === \'string\') {
+                    if (!/(^|&)csrf_token=/.test(data)) {
+                        options.data = data + (data ? \'&\' : \'\')
+                            + \'csrf_token=\' + encodeURIComponent(token);
+                    }
+                } else {
+                    if (data == null || typeof data !== \'object\') {
+                        data = {};
+                    }
+                    if (data.csrf_token == null || data.csrf_token === \'\') {
+                        data.csrf_token = token;
+                    }
+                    options.data = data;
+                }
+                return true;
+            }
+
+            if (window.jQuery && typeof window.jQuery.ajaxPrefilter === \'function\') {
+                window.jQuery.ajaxPrefilter(function (options, originalOptions, jqXHR) {
+                    var method = String(options.type || options.method || \'GET\').toUpperCase();
+                    if (method !== \'POST\') {
+                        return;
+                    }
+                    if (!isTargetAdminEndpoint(options.url || \'\')) {
+                        return;
+                    }
+                    var origBeforeSend = options.beforeSend;
+                    options.beforeSend = function (xhr, settings) {
+                        // Kiem tra TRUOC khi gui: khong co token -> huy request,
+                        // khong bao gio gui request chac chan nhan 419.
+                        if (!window.getAdminCsrfToken()) {
+                            notifyMissingToken();
+                            return false;
+                        }
+                        if (typeof origBeforeSend === \'function\') {
+                            return origBeforeSend.call(this, xhr, settings);
+                        }
+                    };
+                    if (!attachToken(options)) {
+                        // Du phong: abort ngay ca khi attach that bai.
+                        jqXHR.abort();
+                        notifyMissingToken();
+                    }
+                });
+            }
+        })();
     </script>
     <script>
     (function () {

@@ -159,13 +159,19 @@ if (!$user || !is_admin_account($data_user)) {
                             + \'csrf_token=\' + encodeURIComponent(token);
                     }
                 } else {
-                    if (data == null || typeof data !== \'object\') {
-                        data = {};
+                    // Luu y: jQuery serialize object data (jQuery.param) TRUOC khi
+                    // goi prefilters, nen object branch phai tu serialize lai sau
+                    // khi them token. data == null -> query string chi gom token
+                    // (khong bao gio de options.data la object tho, jQuery se gui
+                    // "[object Object]" vi da qua buoc serialize).
+                    if (data != null && typeof data === \'object\') {
+                        if (data.csrf_token == null || data.csrf_token === \'\') {
+                            data.csrf_token = token;
+                        }
+                        options.data = window.jQuery.param(data);
+                    } else {
+                        options.data = \'csrf_token=\' + encodeURIComponent(token);
                     }
-                    if (data.csrf_token == null || data.csrf_token === \'\') {
-                        data.csrf_token = token;
-                    }
-                    options.data = data;
                 }
                 return true;
             }

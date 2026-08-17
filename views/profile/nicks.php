@@ -229,9 +229,19 @@ if (!$user) {
                         ';
     foreach ($listOrder as $info) {
         $query_product = $db->get_row('SELECT * FROM `subcategory` WHERE `type_category` = \'' . $info['type_category'] . '\'');
-        $detail_product = json_decode($query_product['detail'], true);
+        $detail_product = $query_product
+            ? json_decode((string) $query_product['detail'], true)
+            : [];
+        if (!is_array($detail_product)) {
+            $detail_product = [];
+        }
+        if (empty($detail_product['name_product'])) {
+            $detail_product['name_product'] = (string) ($info['type_category'] ?? 'Danh mục đã xóa');
+        }
         $detail = json_decode($info['detail'], true);
-        $arr_detail = $detail['data'];
+        $arr_detail = is_array($detail) && isset($detail['data']) && is_array($detail['data'])
+            ? $detail['data']
+            : [];
         echo '                            <a class="row-gd">
                                 <div>
                                     <p class="ten_row">';

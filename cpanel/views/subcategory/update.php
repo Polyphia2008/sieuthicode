@@ -185,7 +185,7 @@ if (isset($_POST['UpdateCategory']) && is_admin_account($data_user)) {
                         </div>
                     </div>
                     ';
-    echo '<div class="alert alert-info">Với danh mục RANDOM, hãy cấu hình <strong>Tài khoản</strong> và <strong>Mật khẩu</strong>. Khi đăng kho, nhập mỗi tài khoản một dòng theo định dạng <code>taikhoan|matkhau</code>. Để trống ô Tùy chọn trừ khi kiểu dữ liệu là “Chọn dữ liệu”. Chọn “Không hiển thị trước khi mua” cho thông tin đăng nhập.</div>';
+    echo '<div class="alert alert-info">Với danh mục RANDOM, hãy cấu hình <strong>Tài khoản</strong> và <strong>Mật khẩu</strong>. Khi đăng kho, nhập mỗi tài khoản một dòng theo định dạng <code>taikhoan|matkhau</code> hoặc <code>taikhoan:matkhau</code>. Để trống ô Tùy chọn trừ khi kiểu dữ liệu là “Chọn dữ liệu”. Chọn “Không hiển thị trước khi mua” cho thông tin đăng nhập.</div>';
     // Render every configured field. The old decompiled loop started at 2,
     // which hid the first two fields (normally Tài khoản and Mật khẩu).
     $i = 0;

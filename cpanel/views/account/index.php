@@ -119,6 +119,7 @@ if ($row['type'] == 'RANDOM') {
     echo '                                    <textarea type="text" class="form-control" name="data" placeholder="';
     echo $placeholder;
     echo '"></textarea>
+                                    <small class="text-muted">Mỗi tài khoản một dòng. Dùng dấu | theo cấu hình; với Tài khoản/Mật khẩu cũng chấp nhận dấu : (ví dụ user:pass).</small>
                                 </div>
                             </div>
                         ';

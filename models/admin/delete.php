@@ -136,23 +136,62 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 }
                             }
                         case 'removeSubCategory':
-                            $subcategory = $db->get_row('SELECT * FROM `subcategory` WHERE `id` = ' . $id);
+                            $subcategoryId = (int) $id;
+                            $subcategory = $db->get_row(
+                                "SELECT * FROM `subcategory` WHERE `id` = '" . $subcategoryId . "' LIMIT 1"
+                            );
                             if (!$subcategory) {
                                 exit(JsonMsg('error', 'Chuyên mục không tồn tại'));
-                            } else {
-                                if (0 < $db->num_rows('SELECT * FROM `accounts` WHERE `sub_id` = \'' . $subcategory['id'] . '\'')) {
-                                    exit(JsonMsg('error', 'Chuyên mục này đang chứa tài khoản, bạn không thể xóa'));
-                                } else {
-                                    $detail = json_decode($subcategory['detail'], true);
-                                    $isRemove = $db->remove('subcategory', ' `id` = \'' . $id . '\' ');
-                                    if ($isRemove) {
-                                        insert_log($data_user['id'], 'Thực hiện xóa Chuyên mục [' . $detail['name_product'] . '] ra khỏi hệ thống');
-                                        exit(JsonMsg('success', 'Xóa Chuyên mục thành công'));
-                                    } else {
-                                        exit(JsonMsg('error', 'Đã xảy ra lỗi khi xóa Chuyên mục'));
-                                    }
-                                }
                             }
+
+                            // Xóa danh mục theo yêu cầu kể cả khi còn tài khoản.
+                            // Dọn các bản ghi phụ và kho tài khoản trong cùng một
+                            // transaction để không tạo account mồ côi. Lịch sử mua
+                            // được giữ lại vì chứa snapshot detail cho khách hàng.
+                            $accountRows = $db->get_list(
+                                "SELECT `id` FROM `accounts` WHERE `sub_id` = '" . $subcategoryId . "'"
+                            );
+                            $accountIds = [];
+                            foreach ($accountRows as $accountRow) {
+                                $accountIds[] = (int) $accountRow['id'];
+                            }
+
+                            $db->query('START TRANSACTION');
+                            $deleteOk = true;
+                            if (count($accountIds) > 0) {
+                                $idList = implode(',', $accountIds);
+                                $deleteOk = $db->query(
+                                    "DELETE FROM `favorites` WHERE `acc_id` IN (" . $idList . ")"
+                                ) !== false && $deleteOk;
+                                $deleteOk = $db->query(
+                                    "DELETE FROM `flash_sale_products` WHERE `product_id` IN (" . $idList . ")"
+                                ) !== false && $deleteOk;
+                            }
+                            $deleteOk = $db->query(
+                                "DELETE FROM `accounts` WHERE `sub_id` = '" . $subcategoryId . "'"
+                            ) !== false && $deleteOk;
+                            $isRemove = $db->remove('subcategory', "`id` = '" . $subcategoryId . "'");
+                            $subcategoryRemoved = $isRemove && $db->affected_rows() === 1;
+
+                            if (!$deleteOk || !$subcategoryRemoved) {
+                                $db->query('ROLLBACK');
+                                exit(JsonMsg('error', 'Đã xảy ra lỗi khi xóa Chuyên mục'));
+                            }
+                            $db->query('COMMIT');
+
+                            $detail = json_decode((string) $subcategory['detail'], true);
+                            $subcategoryName = is_array($detail) && !empty($detail['name_product'])
+                                ? (string) $detail['name_product']
+                                : ('#' . $subcategoryId);
+                            insert_log(
+                                $data_user['id'],
+                                'Thực hiện xóa Chuyên mục [' . $subcategoryName . '] và '
+                                . count($accountIds) . ' tài khoản trong kho'
+                            );
+                            exit(JsonMsg(
+                                'success',
+                                'Xóa Chuyên mục thành công cùng ' . count($accountIds) . ' tài khoản trong kho'
+                            ));
                         case 'removeUnit':
                             $subcategory = $db->get_row('SELECT * FROM `units` WHERE `id` = ' . $id);
                             if (!$subcategory) {

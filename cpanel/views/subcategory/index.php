@@ -142,7 +142,7 @@ if (isset($_POST['AddCategory']) && is_admin_account($data_user)) {
                             <div class="alert alert-info">
                                 <strong>Cấu hình dữ liệu tài khoản:</strong> Với loại RANDOM, hãy giữ hai trường mặc định
                                 <strong>Tài khoản</strong> và <strong>Mật khẩu</strong>. Khi đăng kho, nhập mỗi tài khoản một dòng theo
-                                định dạng <code>taikhoan|matkhau</code>. Ô “Tùy chọn” chỉ dùng cho kiểu “Chọn dữ liệu”.
+                                định dạng <code>taikhoan|matkhau</code> hoặc <code>taikhoan:matkhau</code>. Ô “Tùy chọn” chỉ dùng cho kiểu “Chọn dữ liệu”.
                                 Chọn “Không hiển thị trước khi mua” cho thông tin đăng nhập; người mua vẫn thấy đầy đủ sau thanh toán.
                             </div>
                             <div class="row">
@@ -443,7 +443,7 @@ if (isset($_POST['AddCategory']) && is_admin_account($data_user)) {
     const confirmAction = (id) => {
         Swal.fire({
             title: \'Xác Nhận!\',
-            text: "Bạn đồng ý thực hiện xóa danh mục " + id,
+            text: "Xóa danh mục " + id + "? Toàn bộ tài khoản đang còn trong kho của danh mục này cũng sẽ bị xóa. Lịch sử mua của khách vẫn được giữ.",
             icon: \'warning\',
             showCancelButton: true,
             confirmButtonColor: \'#3085d6\',

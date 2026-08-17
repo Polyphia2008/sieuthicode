@@ -55,6 +55,7 @@ RewriteRule ^model/chat/messages/?$ models/client/chat/messages.php [L,QSA,NC]
 RewriteRule ^model/chat/send/?$ models/client/chat/send.php [L,QSA,NC]
 RewriteRule ^model/chat/read/?$ models/client/chat/read.php [L,QSA,NC]
 RewriteRule ^model/chat/reopen/?$ models/client/chat/reopen.php [L,QSA,NC]
+RewriteRule ^model/chat/delete/?$ models/client/chat/delete.php [L,QSA,NC]
 RewriteRule ^model/chat/attachment/?$ models/client/chat/attachment.php [L,QSA,NC]
 
 # Chat support (admin) endpoints.

@@ -15,6 +15,9 @@ if (!defined('CHAT_RATE_LIMIT_MAX')) {
 if (!defined('CHAT_RATE_LIMIT_WINDOW')) {
     define('CHAT_RATE_LIMIT_WINDOW', 60); // mỗi 60 giây
 }
+if (!defined('CHAT_SEND_COOLDOWN_SECONDS')) {
+    define('CHAT_SEND_COOLDOWN_SECONDS', 2); // khoảng nghỉ tối thiểu giữa 2 tin
+}
 if (!defined('CHAT_UPLOAD_MAX_BYTES')) {
     define('CHAT_UPLOAD_MAX_BYTES', 5 * 1024 * 1024); // 5MB
 }
@@ -162,6 +165,36 @@ function chat_rate_limit_send($userId, $scope = 'user')
     $_SESSION[$key] = $bucket;
     if ($bucket['count'] > CHAT_RATE_LIMIT_MAX) {
         chat_json('error', 'Bạn gửi tin nhắn quá nhanh, vui lòng thử lại sau ít phút', null, 429);
+    }
+}
+
+/**
+ * Bắt buộc khoảng nghỉ tối thiểu giữa hai tin nhắn của cùng người gửi.
+ * Kiểm tra DB nên không thể bypass chỉ bằng cách mở tab/session mới.
+ */
+function chat_enforce_send_cooldown($conversationId, $senderId, $senderRole)
+{
+    global $db;
+    $conversationId = (int) $conversationId;
+    $senderId = (int) $senderId;
+    $role = $senderRole === 'admin' ? 'admin' : 'user';
+    $latest = $db->get_row(
+        "SELECT `created_at` FROM `chat_messages` WHERE `conversation_id` = '" . $conversationId . "'"
+        . " AND `sender_id` = '" . $senderId . "' AND `sender_role` = '" . $role . "'"
+        . " ORDER BY `id` DESC LIMIT 1"
+    );
+    if (!$latest || empty($latest['created_at'])) {
+        return;
+    }
+    $elapsed = time() - (int) strtotime((string) $latest['created_at']);
+    if ($elapsed < CHAT_SEND_COOLDOWN_SECONDS) {
+        $retryAfter = max(1, CHAT_SEND_COOLDOWN_SECONDS - $elapsed);
+        chat_json(
+            'error',
+            'Vui lòng chờ ' . $retryAfter . ' giây trước khi gửi tin tiếp theo',
+            ['retry_after' => $retryAfter],
+            429
+        );
     }
 }
 
@@ -314,6 +347,7 @@ function chat_format_message($row)
         // Không trả filesystem path — client tải qua endpoint bảo vệ theo message_id.
         'attachment' => $hasAttachment ? '/model/chat/attachment?message_id=' . (int) $row['id'] : null,
         'attachment_type' => $row['attachment_type'],
+        'is_read' => (int) ($row['is_read'] ?? 0) === 1,
         'created_at' => $row['created_at'],
         'time_label' => date('H:i', strtotime((string) $row['created_at'])),
         'date_label' => date('d/m/Y', strtotime((string) $row['created_at'])),

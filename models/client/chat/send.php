@@ -15,7 +15,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $account = chat_require_login();
 chat_require_csrf();
-chat_rate_limit_send($account['id'], 'user');
 
 $conversation = chat_get_or_create_conversation($account['id']);
 if ($conversation['status'] === 'closed') {
@@ -23,6 +22,8 @@ if ($conversation['status'] === 'closed') {
         'conversation_status' => 'closed',
     ], 423);
 }
+chat_enforce_send_cooldown($conversation['id'], $account['id'], 'user');
+chat_rate_limit_send($account['id'], 'user');
 
 $attachment = chat_handle_attachment('attachment');
 $message = chat_validate_message($_POST['message'] ?? '', $attachment !== null);

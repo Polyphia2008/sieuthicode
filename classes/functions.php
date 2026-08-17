@@ -38,6 +38,23 @@ function format_cash($price)
     return str_replace(',', '.', number_format($price));
 }
 
+function subcategory_tag_html($detail)
+{
+    if (!is_array($detail) || empty($detail['tag']) || !is_string($detail['tag'])) {
+        return '';
+    }
+    $tag = trim($detail['tag']);
+    if ($tag === '') {
+        return '';
+    }
+    $src = preg_match('#^https?://#i', $tag)
+        ? $tag
+        : rtrim((string) DOMAIN, '/') . '/' . ltrim($tag, '/');
+    return '<img class="subcategory-card-tag" src="'
+        . htmlspecialchars($src, ENT_QUOTES, 'UTF-8')
+        . '" alt="Nhãn dán">';
+}
+
 function custom_cal_days_in_month($month, $year)
 {
     if ($month < 1 || 12 < $month || $year < 0) {

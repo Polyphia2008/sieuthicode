@@ -28,6 +28,7 @@
     var reopenBtn = document.getElementById('chat-reopen');
     var statusText = document.getElementById('chat-status-text');
     var backBtn = document.getElementById('chat-back');
+    var deleteHistoryBtn = document.getElementById('chat-delete-history');
     var wrapEl = document.querySelector('.chat-wrap');
 
     var POLL_INTERVAL = 4000;
@@ -98,6 +99,12 @@
 
         wrap.appendChild(bubble);
         wrap.appendChild(time);
+        if (msg.sender_role === 'user') {
+            var delivery = document.createElement('div');
+            delivery.className = 'chat-delivery-status';
+            delivery.textContent = msg.is_read ? 'Đã xem' : 'Đã gửi';
+            wrap.appendChild(delivery);
+        }
         li.appendChild(wrap);
         return li;
     }
@@ -118,6 +125,19 @@
             setState('ok');
             scrollToBottom(forceScroll);
         }
+    }
+
+    function applyReadStatus(lastReadUserMessageId) {
+        var readUpTo = parseInt(lastReadUserMessageId, 10) || 0;
+        listEl.querySelectorAll('.chat-item.is-user[data-id]').forEach(function (item) {
+            var status = item.querySelector('.chat-delivery-status');
+            if (!status) {
+                return;
+            }
+            var messageId = parseInt(item.dataset.id, 10) || 0;
+            status.textContent = readUpTo > 0 && messageId <= readUpTo ? 'Đã xem' : 'Đã gửi';
+            status.classList.toggle('is-read', readUpTo > 0 && messageId <= readUpTo);
+        });
     }
 
     function applyConversationStatus(status) {
@@ -161,6 +181,7 @@
                 }
                 var conv = json.data.conversation;
                 applyConversationStatus(conv && conv.status ? conv.status : 'open');
+                applyReadStatus(conv ? conv.last_read_user_message_id : 0);
                 markRead();
             })
             .catch(function () {
@@ -183,6 +204,7 @@
                     markRead();
                 }
                 applyConversationStatus(json.data.conversation.status);
+                applyReadStatus(json.data.conversation.last_read_user_message_id);
             })
             .catch(function () { /* giữ nguyên, thử lại ở chu kỳ sau */ });
     }
@@ -299,6 +321,37 @@
                 })
                 .catch(function () {
                     alert('Lỗi kết nối, vui lòng thử lại');
+                });
+        });
+    }
+
+    if (deleteHistoryBtn) {
+        deleteHistoryBtn.addEventListener('click', function () {
+            if (!window.confirm('Xóa toàn bộ lịch sử trò chuyện? Thao tác này không thể hoàn tác.')) {
+                return;
+            }
+            deleteHistoryBtn.disabled = true;
+            var fd = new FormData();
+            fd.append('csrf_token', csrfToken);
+            apiPost('/model/chat/delete', fd)
+                .then(function (json) {
+                    if (json.status !== 'success') {
+                        alert(json.msg || 'Không thể xóa lịch sử trò chuyện');
+                        return;
+                    }
+                    listEl.innerHTML = '';
+                    lastId = 0;
+                    clearAttachment();
+                    inputEl.value = '';
+                    autoGrowInput();
+                    applyConversationStatus('open');
+                    setState('empty');
+                })
+                .catch(function () {
+                    alert('Lỗi kết nối, vui lòng thử lại');
+                })
+                .finally(function () {
+                    deleteHistoryBtn.disabled = false;
                 });
         });
     }

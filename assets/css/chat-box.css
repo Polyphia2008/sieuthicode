@@ -590,3 +590,47 @@
         max-width: 86%;
     }
 }
+
+/* Trạng thái gửi/đã xem của tin nhắn thành viên */
+.chat-delivery-status {
+    margin-top: 1px;
+    margin-right: 4px;
+    color: #9aa0a6;
+    font-size: 10.5px;
+    line-height: 1.25;
+    text-align: right;
+}
+.chat-delivery-status.is-read {
+    color: #4f78d1;
+    font-weight: 600;
+}
+
+/* Xóa lịch sử trò chuyện */
+.chat-delete-history {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 0;
+    border-radius: 8px;
+    padding: 7px 10px;
+    background: #fff0f0;
+    color: #c93636;
+    font-size: 12px;
+    cursor: pointer;
+}
+.chat-delete-history:hover {
+    background: #ffe2e2;
+}
+.chat-delete-history:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+}
+@media (max-width: 575.98px) {
+    .chat-delete-history span {
+        display: none;
+    }
+    .chat-delete-history {
+        padding: 8px;
+    }
+}

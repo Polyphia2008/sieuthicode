@@ -228,7 +228,9 @@ foreach ($db->get_list('SELECT * FROM `subcategory` WHERE `category` = \'' . $ro
     echo DOMAIN . '/' . $detail['thumb'];
     echo '" class="lazyload" alt="';
     echo $detail['name_product'];
-    echo '">
+    echo '">';
+    echo subcategory_tag_html($detail);
+    echo '
                         </div>
                         <h3>';
     echo $detail['name_product'];

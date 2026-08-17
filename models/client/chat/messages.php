@@ -44,11 +44,17 @@ if ($afterId > 0) {
     }
 }
 
+$readRow = $db->get_row(
+    "SELECT MAX(`id`) AS `last_read_id` FROM `chat_messages` WHERE `conversation_id` = '"
+    . $conversationId . "' AND `sender_role` = 'user' AND `is_read` = 1"
+);
+
 chat_json('success', 'OK', [
     'messages' => $messages,
     'conversation' => [
         'id' => $conversationId,
         'status' => $conversation['status'],
         'unread' => (int) $conversation['unread_user'],
+        'last_read_user_message_id' => (int) ($readRow['last_read_id'] ?? 0),
     ],
 ]);

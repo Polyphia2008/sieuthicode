@@ -60,6 +60,9 @@ $supportName = 'Hỗ trợ ' . $db->site('title');
                         <h3><?= htmlspecialchars($supportName, ENT_QUOTES) ?> <i class="fas fa-circle-check chat-verified"></i></h3>
                         <p id="chat-status-text">Đang kết nối...</p>
                     </div>
+                    <button type="button" class="chat-delete-history" id="chat-delete-history" title="Xóa lịch sử trò chuyện" aria-label="Xóa lịch sử trò chuyện">
+                        <i class="far fa-trash-can"></i><span>Xóa lịch sử</span>
+                    </button>
                 </div>
 
                 <div class="chat-messages" id="chat-messages">

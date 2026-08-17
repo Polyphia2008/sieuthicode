@@ -151,9 +151,10 @@ if ($action === 'add') {
     ];
 
     if ($type === 'RANDOM') {
+        // RANDOM có thể miễn phí (0đ) hoặc mất phí. Chỉ từ chối giá âm.
         $cash = (int) ($_POST['cash'] ?? 0);
-        if ($cash < 1) {
-            exit(JsonMsg('error', 'Vui lòng nhập giá tiền bán random lớn hơn 0'));
+        if ($cash < 0) {
+            exit(JsonMsg('error', 'Giá tiền bán random không được là số âm'));
         }
         $json['cash'] = $cash;
     }
@@ -212,9 +213,10 @@ $json = [
 ];
 
 if ((string) $subcategory['type'] === 'RANDOM') {
+    // Giữ hỗ trợ RANDOM miễn phí khi cập nhật danh mục.
     $price = (int) ($_POST['price'] ?? 0);
-    if ($price < 1) {
-        exit(JsonMsg('error', 'Vui lòng nhập giá tiền bán random lớn hơn 0'));
+    if ($price < 0) {
+        exit(JsonMsg('error', 'Giá tiền bán random không được là số âm'));
     }
     $json['cash'] = $price;
 }

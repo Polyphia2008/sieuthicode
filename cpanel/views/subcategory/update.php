@@ -161,9 +161,10 @@ if (isset($_POST['UpdateCategory']) && is_admin_account($data_user)) {
         echo '                            <div class="col-md-4 mb-2">
                                 <div class="form-group">
                                     <label class="form-label">Giá tiền</label>
-                                    <input name="price" class="form-control" value="';
+                                    <input name="price" type="number" min="0" class="form-control" value="';
         echo $detail['cash'];
         echo '">
+                                    <small class="text-muted">Cho phép 0đ. Khi lưu, giá mới sẽ được đồng bộ cho toàn bộ tài khoản chưa bán trong danh mục.</small>
                                 </div>
                             </div>
                         ';

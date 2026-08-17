@@ -117,7 +117,8 @@ if (isset($_POST['AddCategory']) && is_admin_account($data_user)) {
                         <div class="col-md-3 mb-2">
                             <div class="form-group">
                                 <label class="form-label">Giá tiền</label>
-                                <input class="form-control" name="cash" type="number" placeholder="Nếu là vận may thì nhập">
+                                <input class="form-control" name="cash" type="number" min="0" value="0" placeholder="Giá RANDOM, cho phép 0đ">
+                                <small class="text-muted">RANDOM miễn phí nhập 0; RANDOM mất phí nhập giá bán.</small>
                             </div>
                         </div>
                         <div class="col-md-3 mb-2">

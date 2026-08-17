@@ -241,6 +241,12 @@ if ($fullJson === false) {
 }
 
 $display = (int) ($_POST['status'] ?? 0) === 1 ? 1 : 0;
+
+// Category price is the source of truth for RANDOM stock. Keep all unsold
+// accounts synchronized when an administrator changes the category price,
+// including transitions from/to the valid free price 0đ. Sold accounts and
+// history snapshots are deliberately left unchanged.
+$db->query('START TRANSACTION');
 $updated = $db->update('subcategory', [
     'category' => $category,
     'stt' => $stt,
@@ -250,11 +256,41 @@ $updated = $db->update('subcategory', [
 ], "`id` = '" . $id . "'");
 
 if (!$updated) {
+    $db->query('ROLLBACK');
     exit(JsonMsg('error', 'Không thể cập nhật danh mục'));
+}
+
+$syncedStock = 0;
+if ((string) $subcategory['type'] === 'RANDOM') {
+    $syncedStock = $db->num_rows(
+        "SELECT `id` FROM `accounts` WHERE `sub_id` = '" . $id . "' AND `status` = 'on'"
+    );
+    $syncResult = $db->query(
+        "UPDATE `accounts` SET `money` = '" . (int) $price . "', `updated_at` = '" . time() . "'"
+        . " WHERE `sub_id` = '" . $id . "' AND `status` = 'on'"
+    );
+    if ($syncResult === false) {
+        $db->query('ROLLBACK');
+        exit(JsonMsg('error', 'Không thể đồng bộ giá cho tài khoản đang bán'));
+    }
+}
+
+if ($db->query('COMMIT') === false) {
+    $db->query('ROLLBACK');
+    exit(JsonMsg('error', 'Không thể hoàn tất cập nhật danh mục'));
 }
 
 insert_log(
     $data_user['id'],
     'Chỉnh sửa danh mục ' . (string) ($currentDetail['name_product'] ?? $nameProduct)
+    . ((string) $subcategory['type'] === 'RANDOM'
+        ? ' và đồng bộ giá ' . $price . 'đ cho ' . $syncedStock . ' tài khoản đang bán'
+        : '')
 );
-exit(JsonMsg('success', 'Chỉnh sửa thành công danh mục ' . $nameProduct));
+
+$message = 'Chỉnh sửa thành công danh mục ' . $nameProduct;
+if ((string) $subcategory['type'] === 'RANDOM') {
+    $message .= '. Đã đồng bộ giá ' . number_format((int) $price) . 'đ cho '
+        . $syncedStock . ' tài khoản đang bán';
+}
+exit(JsonMsg('success', $message));

@@ -15,7 +15,9 @@ if (!$user) {
         $query_product = $db->get_row('SELECT * FROM `subcategory` WHERE `type_category` = \'' . $info['type_category'] . '\'');
         $detail_product = json_decode($query_product['detail'], true);
         $detail = json_decode($info['detail'], true);
-        $arr_detail = $detail['data'];
+        $arr_detail = is_array($detail) && isset($detail['data']) && is_array($detail['data'])
+            ? $detail['data']
+            : [];
     } else {
         new Redirect('/customer/history/account');
     }
@@ -91,6 +93,9 @@ if (!$user) {
                                 <P></P>
                             </div>
                             ';
+    if (count($arr_detail) === 0) {
+        echo '<div class="alert alert-warning">Dữ liệu đăng nhập của tài khoản này không tồn tại. Đây có thể là tài khoản được nhập từ danh mục lỗi trước khi cấu hình Tài khoản/Mật khẩu được sửa. Vui lòng liên hệ hỗ trợ.</div>';
+    }
     foreach ($arr_detail as $item) {
         echo '                                <div>
                                     <p>';

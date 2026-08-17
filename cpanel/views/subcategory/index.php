@@ -139,6 +139,12 @@ if (isset($_POST['AddCategory']) && is_admin_account($data_user)) {
                             </div>
                         </div>
                         <div class="col-md-12 mb-2">
+                            <div class="alert alert-info">
+                                <strong>Cấu hình dữ liệu tài khoản:</strong> Với loại RANDOM, hãy giữ hai trường mặc định
+                                <strong>Tài khoản</strong> và <strong>Mật khẩu</strong>. Khi đăng kho, nhập mỗi tài khoản một dòng theo
+                                định dạng <code>taikhoan|matkhau</code>. Ô “Tùy chọn” chỉ dùng cho kiểu “Chọn dữ liệu”.
+                                Chọn “Không hiển thị trước khi mua” cho thông tin đăng nhập; người mua vẫn thấy đầy đủ sau thanh toán.
+                            </div>
                             <div class="row">
                                 <div class="col-md-3 mb-2 ">
                                     <div class="form-group">
@@ -154,22 +160,22 @@ if (isset($_POST['AddCategory']) && is_admin_account($data_user)) {
                                 <div class="col-md-3 mb-2">
                                     <div class="form-group">
                                         <label class="form-label">Tên hiển thị:</label>
-                                        <input class="form-control" name="data_name[]" type="text" placeholder="Tên hiển thị">
+                                        <input class="form-control" name="data_name[]" type="text" placeholder="Ví dụ: Tài khoản" value="Tài khoản">
                                     </div>
                                 </div>
                                 <div class="col-md-3 mb-2">
                                     <div class="form-group">
-                                        <label class="form-label">Giá trị</label>
-                                        <input class="form-control" type="text" name="data_value[]" placeholder="Phân cách dữ liệu bằng ký tự |">
+                                        <label class="form-label">Tùy chọn (chỉ dùng cho kiểu Chọn dữ liệu)</label>
+                                        <input class="form-control" type="text" name="data_value[]" placeholder="Ví dụ: Server 1|Server 2">
                                     </div>
                                 </div>
                                 <div class="col-md-3 mb-2">
                                     <div class="form-group">
-                                        <label class="form-label">Dữ liệu được</label>
+                                        <label class="form-label">Hiển thị trước khi mua</label>
                                         <div class="input-group">
                                             <select class="form-control select2bs4" name="data_show[]">
-                                                <option value="on">Hiển thị cho người dùng</option>
-                                                <option value="off">Không hiển thị cho người dùng</option>
+                                                <option value="off" selected>Không hiển thị trước khi mua</option>
+                                                <option value="on">Hiển thị trước khi mua</option>
                                             </select>
                                             <div class="input-group-append">
                                                 <button class="btn btn-success" type="button" onclick="add_();"><i class="fa fa-plus"></i>
@@ -194,7 +200,7 @@ if (isset($_POST['AddCategory']) && is_admin_account($data_user)) {
 
                     </div>
                     <div class="mb-3">
-                        <button type="submit" onclick="Upload()" id="ThemChuyenMuc" class="btn btn-success">
+                        <button type="button" onclick="Upload()" id="ThemChuyenMuc" class="btn btn-success">
                             Thêm Ngay
                         </button>
                     </div>
@@ -337,17 +343,17 @@ if (isset($_POST['AddCategory']) && is_admin_account($data_user)) {
                                 </div>
                                 <div class="col-md-3 mb-2">
                                     <div class="form-group">
-                                        <label class="form-label">Giá trị</label>
+                                        <label class="form-label">Tùy chọn (chỉ dùng cho kiểu Chọn dữ liệu)</label>
                                         <input class="form-control" type="text" name="data_value[]" placeholder="Phân cách dữ liệu bằng ký tự |">
                                     </div>
                                 </div>
                                 <div class="col-md-3 mb-2">
                                     <div class="form-group">
-                                        <label class="form-label">Dữ liệu được</label>
+                                        <label class="form-label">Hiển thị trước khi mua</label>
                                         <div class="input-group">
                                             <select class="form-control" name="data_show[]">
-                                                <option value="on">Hiển thị cho người dùng</option>
-                                                <option value="off">Không hiển thị cho người dùng</option>
+                                                <option value="off" selected>Không hiển thị trước khi mua</option>
+                                                <option value="on">Hiển thị trước khi mua</option>
                                             </select>
                                             <div class="input-group-append">
                                                 <button class="btn btn-danger" type="button" onclick="remove(${room});"><i class="fa fa-minus"></i></button>
@@ -359,6 +365,21 @@ if (isset($_POST['AddCategory']) && is_admin_account($data_user)) {
                         </div>`;
         objTo.appendChild(divtest);
     }
+
+    // New categories should work immediately for the common account/password
+    // schema. Administrators can remove or customize this second row.
+    document.addEventListener('DOMContentLoaded', function () {
+        add_();
+        var types = document.getElementsByName('data_type[]');
+        var names = document.getElementsByName('data_name[]');
+        var shows = document.getElementsByName('data_show[]');
+        var index = types.length - 1;
+        if (index >= 0) {
+            types[index].value = 'password';
+            names[index].value = 'Mật khẩu';
+            shows[index].value = 'off';
+        }
+    });
 
     function remove(rid) {
         room = rid - 1;

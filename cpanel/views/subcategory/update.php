@@ -11,6 +11,33 @@ if (isset($_GET['id']) && is_admin_account($data_user)) {
         new Redirect('/cpanel/subcategory/view');
     }
     $detail = json_decode($row['detail'], true);
+    if (!is_array($detail)) {
+        $detail = [];
+    }
+    // Recover categories created by the old index-2 bug. Those rows have an
+    // empty data schema, so the RANDOM import modal has no placeholder and
+    // purchased accounts contain no credentials. Show a safe default schema
+    // that the administrator can save immediately.
+    if (!isset($detail['data']) || !is_array($detail['data']) || count($detail['data']) === 0) {
+        $detail['data'] = [
+            [
+                'id' => 0,
+                'label' => 'Tài khoản',
+                'type' => 'input',
+                'name' => 'taikhoan',
+                'value' => '',
+                'show' => 'off',
+            ],
+            [
+                'id' => 1,
+                'label' => 'Mật khẩu',
+                'type' => 'password',
+                'name' => 'matkhau',
+                'value' => '',
+                'show' => 'off',
+            ],
+        ];
+    }
 } else {
     new Redirect('/cpanel/subcategory/view');
 }
@@ -158,7 +185,10 @@ if (isset($_POST['UpdateCategory']) && is_admin_account($data_user)) {
                         </div>
                     </div>
                     ';
-    $i = 2;
+    echo '<div class="alert alert-info">Với danh mục RANDOM, hãy cấu hình <strong>Tài khoản</strong> và <strong>Mật khẩu</strong>. Khi đăng kho, nhập mỗi tài khoản một dòng theo định dạng <code>taikhoan|matkhau</code>. Để trống ô Tùy chọn trừ khi kiểu dữ liệu là “Chọn dữ liệu”. Chọn “Không hiển thị trước khi mua” cho thông tin đăng nhập.</div>';
+    // Render every configured field. The old decompiled loop started at 2,
+    // which hid the first two fields (normally Tài khoản and Mật khẩu).
+    $i = 0;
     while ($i < count($detail['data'])) {
         echo '                        <div class="removeclass';
         echo $i + 1;
@@ -197,7 +227,7 @@ if (isset($_POST['UpdateCategory']) && is_admin_account($data_user)) {
                                 </div>
                                 <div class="col-md-3 mb-2">
                                     <div class="form-group">
-                                        <label class="form-label">Giá trị</label>
+                                        <label class="form-label">Tùy chọn (chỉ dùng cho kiểu Chọn dữ liệu)</label>
                                         <input class="form-control" type="text" name="data_value[]" placeholder="Phân cách dữ liệu bằng ký tự |" value="';
         echo $detail['data'][$i]['value'];
         echo '">
@@ -205,7 +235,7 @@ if (isset($_POST['UpdateCategory']) && is_admin_account($data_user)) {
                                 </div>
                                 <div class="col-md-3 mb-2">
                                     <div class="form-group">
-                                        <label class="form-label">Dữ liệu được</label>
+                                        <label class="form-label">Hiển thị trước khi mua</label>
                                         <div class="input-group">
                                             <select class="form-control select2bs4" name="data_show[]">
                                                 <option value="on" ';
@@ -307,17 +337,17 @@ if (isset($_POST['UpdateCategory']) && is_admin_account($data_user)) {
                             </div>
                             <div class="col-md-3 mb-2">
                                 <div class="form-group">
-                                    <label class="form-label">Giá trị</label>
+                                    <label class="form-label">Tùy chọn (chỉ dùng cho kiểu Chọn dữ liệu)</label>
                                     <input class="form-control" type="text" name="data_value[]" placeholder="Phân cách dữ liệu bằng ký tự |">
                                 </div>
                             </div>
                             <div class="col-md-3 mb-2">
                                 <div class="form-group">
-                                    <label class="form-label">Dữ liệu được</label>
+                                    <label class="form-label">Hiển thị trước khi mua</label>
                                     <div class="input-group">
                                         <select class="form-control" name="data_show[]">
-                                            <option value="on">Hiển thị cho người dùng</option>
-                                            <option value="off">Không hiển thị cho người dùng</option>
+                                            <option value="on">Hiển thị trước khi mua</option>
+                                            <option value="off">Không hiển thị trước khi mua</option>
                                         </select>
                                         <div class="input-group-append">
                                             <button class="btn btn-danger" type="button" onclick="remove(${room});"><i class="fa fa-minus"></i></button>

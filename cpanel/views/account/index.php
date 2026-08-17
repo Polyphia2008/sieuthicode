@@ -10,6 +10,10 @@ if (isset($_GET['id']) && is_admin_account($data_user)) {
         new Redirect('/cpanel/subcategory/view');
     }
     $detail = json_decode($row['detail'], true);
+    if (!is_array($detail)) {
+        $detail = [];
+    }
+    $schemaMissing = !isset($detail['data']) || !is_array($detail['data']) || count($detail['data']) === 0;
 } else {
     new Redirect('/cpanel/subcategory/view');
 }
@@ -21,11 +25,22 @@ echo '<main id="main-container">
 echo $detail['name_product'];
 echo '</h3>
                 <div class="d-flex">
-                    <button data-bs-toggle="modal" data-bs-target="#accountModal" class="btn btn-sm btn-primary btn-wave waves-light waves-effect waves-light"><i class="ri-add-line fw-semibold align-middle"></i> Đăng tài khoản</button>
+                    ';
+if ($schemaMissing) {
+    echo '<a href="/cpanel/subcategory/update/' . (int) $row['id'] . '" class="btn btn-sm btn-warning"><i class="fa fa-wrench"></i> Cấu hình Tài khoản/Mật khẩu</a>';
+} else {
+    echo '<button data-bs-toggle="modal" data-bs-target="#accountModal" class="btn btn-sm btn-primary btn-wave waves-light waves-effect waves-light"><i class="ri-add-line fw-semibold align-middle"></i> Đăng tài khoản</button>';
+}
+echo '
                 </div>
             </div>
 
             <div class="block-content">
+                ';
+if ($schemaMissing) {
+    echo '<div class="alert alert-warning"><strong>Danh mục này chưa có cấu hình dữ liệu.</strong> Đây là lỗi từ phiên bản cũ khiến Tài khoản/Mật khẩu bị bỏ qua. Nhấn “Cấu hình Tài khoản/Mật khẩu”, kiểm tra hai trường mặc định rồi bấm LƯU NGAY trước khi đăng kho.</div>';
+}
+echo '
                 <div class="row mb-2">
                     <div class="col-md-4">
                         <label class="form-label">Người đăng</label>

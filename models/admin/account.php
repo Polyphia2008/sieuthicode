@@ -2,6 +2,26 @@
 // statically decompiled from account.php  [structured; all 2 record(s) structured]
 
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/libs/init.php';
+
+if (!function_exists('admin_random_account_parts')) {
+    /**
+     * Split one RANDOM stock line. The documented separator is |. For the
+     * common two-field account/password schema, also accept the legacy
+     * account:password format (split only on the first colon so a password may
+     * still contain colons).
+     */
+    function admin_random_account_parts($line, $expectedFields)
+    {
+        $line = trim((string) $line);
+        $parts = explode('|', $line);
+        if (count($parts) < $expectedFields && $expectedFields === 2
+            && strpos($line, '|') === false && strpos($line, ':') !== false) {
+            $parts = explode(':', $line, 2);
+        }
+        return array_map('trim', $parts);
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if ($user) {
         if (!is_admin_account($data_user)) {
@@ -91,24 +111,41 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
     return ['author' => 'db.NET', 'name_product' => $name_product, 'data' => $arr_data];
 }
-                                            $arr = $detail['data'];
+                                            $arr = isset($detail['data']) && is_array($detail['data'])
+                                                ? array_values($detail['data'])
+                                                : [];
+                                            if (count($arr) < 1) {
+                                                exit(JsonMsg('error', 'Danh mục chưa cấu hình trường dữ liệu. Hãy sửa danh mục và thêm Tài khoản/Mật khẩu trước khi đăng kho.'));
+                                            }
                                             $data = array_values(array_filter(array_map('trim', explode("\n", str_replace("\r", '', $data))), function ($line) {
                                                 return $line !== '';
                                             }));
                                             if (count($data) < 1) {
                                                 exit(JsonMsg('error', 'Vui lòng nhập dữ liệu cần đăng'));
                                             }
-                                            foreach ($data as $line) {
-                                                if (count(explode('|', $line)) < count($arr)) {
-                                                    exit(JsonMsg('error', 'Dữ liệu không đúng định dạng, cần ' . count($arr) . ' trường cách nhau bởi dấu |'));
+                                            $parsedAccounts = [];
+                                            foreach ($data as $lineNumber => $line) {
+                                                $parts = admin_random_account_parts($line, count($arr));
+                                                if (count($parts) !== count($arr) || in_array('', $parts, true)) {
+                                                    exit(JsonMsg(
+                                                        'error',
+                                                        'Dòng ' . ($lineNumber + 1) . ' không đúng định dạng. Cần '
+                                                        . count($arr) . ' trường theo thứ tự '
+                                                        . implode('|', array_column($arr, 'label'))
+                                                    ));
                                                 }
+                                                $parsedAccounts[] = $parts;
                                             }
-                                            $z = 0;
-                                            foreach ($data as $key) {
-                                                $account = explode('|', $data[$z]);
-                                                $full_json = addslashes(json_encode(upload_random($arr, $account, $detail['name_product'])));
+                                            foreach ($parsedAccounts as $account) {
+                                                $encoded = json_encode(
+                                                    upload_random($arr, $account, $detail['name_product']),
+                                                    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                                                );
+                                                if ($encoded === false) {
+                                                    exit(JsonMsg('error', 'Không thể tạo dữ liệu tài khoản để đăng'));
+                                                }
+                                                $full_json = addslashes($encoded);
                                                 $db->query('INSERT INTO `accounts`(`sub_id`,`type`, `type_category`, `username_post`, `detail`, `image`, `money`, `sale`, `updated_at`, `created_at`) VALUES (\'' . $query['id'] . '\',\'' . $query['type'] . '\', \'' . $type_category . '\', \'' . $data_user['username'] . '\', \'' . $full_json . '\', \'\', \'' . $detail['cash'] . '\', \'0\', \'' . $date . '\', \'' . $date . '\')');
-                                                ++$z;
                                             }
                                             insert_log($data_user['id'], 'Thêm ' . count($data) . ' tài khoản ' . $detail['name_product'] . '');
                                             exit(JsonMsg('success', 'Đăng thành công ' . count($data) . ''));

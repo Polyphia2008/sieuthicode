@@ -159,8 +159,11 @@ if ($query['type'] == 'ACCOUNT') {
                                     <label class="form-label">Nội dung bằng hình ảnh</label>
                                     <center>
                                         <span class="btn-file">
-                                            <input name="image[]" type="file" class="form-control" multiple>
+                                            <input name="image[]" type="file" class="form-control" accept=".jpg,.png,.jpeg,.gif,.webp,image/*" multiple>
                                         </span>
+                                        <div class="text-center my-2 text-muted">— hoặc thêm URL ảnh, mỗi URL một dòng —</div>
+                                        <textarea name="image_urls" class="form-control" rows="3" placeholder="https://example.com/anh-1.jpg&#10;https://example.com/anh-2.png"></textarea>
+                                        <small class="text-muted">Để trống nếu muốn giữ ảnh hiện tại.</small>
                                         <br>
                                     </center>
                                     ';

@@ -24,6 +24,24 @@ if (isset($_GET['type'])) {
 }
 $title = $detail_query['name_product'] . ' | ' . $db->site('title');
 require_once realpath($_SERVER['DOCUMENT_ROOT'] . '/views/header.php');
+$escapedReviewType = $db->escape((string) $row['type_category']);
+$subcategoryReviews = $db->get_list(
+    "SELECT r.* FROM `reviews` r"
+    . " INNER JOIN `history_buy` h ON h.`id` = r.`history_id`"
+    . " WHERE r.`type` = 'account' AND h.`type_category` = '" . $escapedReviewType . "'"
+    . " ORDER BY r.`id` DESC LIMIT 20"
+);
+$reviewCount = $db->num_rows(
+    "SELECT r.`id` FROM `reviews` r"
+    . " INNER JOIN `history_buy` h ON h.`id` = r.`history_id`"
+    . " WHERE r.`type` = 'account' AND h.`type_category` = '" . $escapedReviewType . "'"
+);
+$reviewAverageRow = $db->get_row(
+    "SELECT AVG(r.`rating`) AS `average_rating` FROM `reviews` r"
+    . " INNER JOIN `history_buy` h ON h.`id` = r.`history_id`"
+    . " WHERE r.`type` = 'account' AND h.`type_category` = '" . $escapedReviewType . "'"
+);
+$reviewAverage = round((float) ($reviewAverageRow['average_rating'] ?? 0), 1);
 echo '<div id="bre-nickgame">
     <div class="breadCrumbs">
         <div class="screen">
@@ -347,6 +365,31 @@ if ($row['type'] == 'RANDOM') {
             </div>
         </div>
     ';
+}
+if ($reviewCount > 0) {
+    echo '<div class="subcategory-reviews mt-4">
+        <div class="title-index">
+            <h3>Đánh giá từ người đã mua</h3>
+            <span><strong>' . number_format($reviewAverage, 1) . '/5</strong> · ' . (int) $reviewCount . ' đánh giá</span>
+        </div>
+        <div class="reviews">';
+    foreach ($subcategoryReviews as $review) {
+        $rating = min(5, max(1, (int) ($review['rating'] ?? 0)));
+        $reviewer = (string) getRowUser((int) $review['user_id'], 'username');
+        $reviewer = $reviewer !== '' ? obfuscateUsername($reviewer) : 'Khách hàng';
+        echo '<div class="review-card">
+            <img src="/assets/images/anhdaidien.svg" alt="Avatar" class="avatar">
+            <div class="review-content">
+                <p class="username">' . htmlspecialchars($reviewer, ENT_QUOTES, 'UTF-8') . '</p>
+                <div class="ratings">'
+                    . str_repeat('★', $rating) . str_repeat('☆', 5 - $rating)
+                    . '<span class="review-info">Đã mua tài khoản thuộc danh mục này</span>
+                </div>
+                <p class="comment">' . nl2br(htmlspecialchars((string) ($review['review'] ?? ''), ENT_QUOTES, 'UTF-8')) . '</p>
+            </div>
+        </div>';
+    }
+    echo '</div></div>';
 }
 echo '</section>
 <script>

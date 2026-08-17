@@ -408,6 +408,125 @@ function upload_multiple_file($name, $folder, $i = 0)
     return $image;
 }
 
+function upload_image_from_url($url, $folder, $maxBytes = 5242880)
+{
+    $url = trim((string) $url);
+    if ($url === '') {
+        return null;
+    }
+    if (!function_exists('curl_init')) {
+        throw new RuntimeException('Hosting chưa bật PHP extension cURL để tải ảnh URL.');
+    }
+    if (!filter_var($url, FILTER_VALIDATE_URL)) {
+        throw new InvalidArgumentException('URL ảnh không hợp lệ.');
+    }
+
+    $parts = parse_url($url);
+    $scheme = strtolower((string) ($parts['scheme'] ?? ''));
+    $host = strtolower((string) ($parts['host'] ?? ''));
+    $port = isset($parts['port']) ? (int) $parts['port'] : ($scheme === 'https' ? 443 : 80);
+    if (!in_array($scheme, ['http', 'https'], true) || $host === '') {
+        throw new InvalidArgumentException('URL ảnh chỉ hỗ trợ HTTP hoặc HTTPS.');
+    }
+    if (($scheme === 'http' && $port !== 80) || ($scheme === 'https' && $port !== 443)) {
+        throw new InvalidArgumentException('URL ảnh phải dùng cổng HTTP/HTTPS tiêu chuẩn.');
+    }
+
+    // SSRF protection: resolve the host ourselves, reject all private/reserved
+    // destinations, then pin cURL to the validated address (DNS rebinding safe).
+    if (filter_var($host, FILTER_VALIDATE_IP)) {
+        $addresses = [$host];
+    } else {
+        $addresses = gethostbynamel($host) ?: [];
+    }
+    $publicIp = '';
+    foreach ($addresses as $address) {
+        if (filter_var(
+            $address,
+            FILTER_VALIDATE_IP,
+            FILTER_FLAG_IPV4 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
+        )) {
+            $publicIp = $address;
+            break;
+        }
+    }
+    if ($publicIp === '') {
+        throw new InvalidArgumentException('Máy chủ ảnh không có địa chỉ IP công khai hợp lệ.');
+    }
+
+    $body = '';
+    $tooLarge = false;
+    $curl = curl_init($url);
+    $curlOptions = [
+        CURLOPT_RETURNTRANSFER => false,
+        CURLOPT_FOLLOWLOCATION => false,
+        CURLOPT_CONNECTTIMEOUT => 5,
+        CURLOPT_TIMEOUT => 15,
+        CURLOPT_USERAGENT => 'Sieuthicode-ImageFetcher/1.0',
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_RESOLVE => [$host . ':' . $port . ':' . $publicIp],
+        CURLOPT_WRITEFUNCTION => function ($ch, $chunk) use (&$body, &$tooLarge, $maxBytes) {
+            if (strlen($body) + strlen($chunk) > $maxBytes) {
+                $tooLarge = true;
+                return 0;
+            }
+            $body .= $chunk;
+            return strlen($chunk);
+        },
+    ];
+    if (defined('CURLOPT_PROTOCOLS') && defined('CURLPROTO_HTTP') && defined('CURLPROTO_HTTPS')) {
+        $curlOptions[CURLOPT_PROTOCOLS] = CURLPROTO_HTTP | CURLPROTO_HTTPS;
+    }
+    curl_setopt_array($curl, $curlOptions);
+    $ok = curl_exec($curl);
+    $status = (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+    $curlError = curl_error($curl);
+    curl_close($curl);
+
+    if ($tooLarge) {
+        throw new RuntimeException('Ảnh URL vượt quá 5MB.');
+    }
+    if ($ok === false || $status < 200 || $status >= 300 || $body === '') {
+        throw new RuntimeException('Không thể tải ảnh URL' . ($curlError !== '' ? ': ' . $curlError : '.'));
+    }
+
+    $imageInfo = @getimagesizefromstring($body);
+    if ($imageInfo === false || empty($imageInfo['mime'])) {
+        throw new RuntimeException('Nội dung URL không phải hình ảnh hợp lệ.');
+    }
+    $mimeToExtension = [
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/gif' => 'gif',
+        'image/webp' => 'webp',
+    ];
+    $mime = strtolower((string) $imageInfo['mime']);
+    if (!isset($mimeToExtension[$mime])) {
+        throw new RuntimeException('Ảnh URL chỉ hỗ trợ JPG, PNG, GIF hoặc WEBP.');
+    }
+    if ((int) ($imageInfo[0] ?? 0) < 1 || (int) ($imageInfo[1] ?? 0) < 1
+        || (int) $imageInfo[0] > 10000 || (int) $imageInfo[1] > 10000) {
+        throw new RuntimeException('Kích thước ảnh URL không hợp lệ.');
+    }
+
+    $folder = trim((string) $folder, '/');
+    if (!preg_match('/^[a-zA-Z0-9_-]+$/', $folder)) {
+        throw new InvalidArgumentException('Thư mục ảnh không hợp lệ.');
+    }
+    $root = realpath($_SERVER['DOCUMENT_ROOT']);
+    $directory = $root . '/upload/' . $folder;
+    if (!is_dir($directory) && !mkdir($directory, 0755, true) && !is_dir($directory)) {
+        throw new RuntimeException('Không thể tạo thư mục upload ảnh.');
+    }
+    $filename = bin2hex(random_bytes(16)) . '.' . $mimeToExtension[$mime];
+    if (file_put_contents($directory . '/' . $filename, $body, LOCK_EX) === false) {
+        throw new RuntimeException('Không thể lưu ảnh tải từ URL.');
+    }
+
+    return 'upload/' . $folder . '/' . $filename;
+}
+
 function upload_file($name, $folder)
 {
     $image = null;

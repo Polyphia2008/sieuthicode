@@ -60522,6 +60522,11 @@ SIEUTHICODE.customjs = function () {
 					holdonClose();
 					if (respone.status == 'success') {
 						alertSuccess("Thông báo", respone.msg);
+						$('.review_button[data-product-id=\"' + productId + '\"]').replaceWith(
+							'<span class=\"reviewed-badge\" title=\"Bạn đã đánh giá tài khoản này\">✓ Đã đánh giá</span>'
+						);
+						$('#reviewModal').modal('hide');
+						document.getElementById('ratingForm').reset();
 					} else {
 						alertDancer("Thông báo", respone.msg);
 					}

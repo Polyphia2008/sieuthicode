@@ -133,7 +133,10 @@ if (isset($_POST['AddCategory']) && is_admin_account($data_user)) {
                                     <img class="w-100 active mb-1" id="img_1" src="/assets/back-end/img/image-size.png">
 
                                     <div class="custom-file text-left">
-                                        <input type="file" name="thumb" class="form-control image-preview-before-upload" data-preview="#viewer" required="" accept=".jpg, .png, .jpeg, .gif, .bmp, .tif, .tiff|image/*" onchange="document.getElementById(\'img_1\').src = window.URL.createObjectURL(this.files[0])">
+                                        <input type="file" name="thumb" class="form-control image-preview-before-upload" data-preview="#viewer" accept=".jpg,.png,.jpeg,.gif,.webp,image/*" onchange="document.getElementById(\'img_1\').src = window.URL.createObjectURL(this.files[0])">
+                                        <div class="text-center my-2 text-muted">— hoặc nhập URL ảnh trực tiếp —</div>
+                                        <input type="url" name="thumb_url" class="form-control" placeholder="https://example.com/anh-san-pham.jpg" oninput="if(this.value){document.getElementById(\'img_1\').src=this.value}">
+                                        <small class="text-muted">Chọn một trong hai: tải file lên hoặc URL JPG/PNG/GIF/WEBP công khai, tối đa 5MB.</small>
                                     </div>
                                 </div>
                             </div>

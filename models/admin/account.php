@@ -99,19 +99,42 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                         if ($sale < 0) {
                                             exit(JsonMsg('error', 'Khuyến mại không được dưới 0%'));
                                         } else {
-                                            if (count($_FILES['image']['name']) < 1) {
-                                                exit(JsonMsg('error', 'Bạn đang thiếu hình ảnh'));
+                                            $fileNames = isset($_FILES['image']['name']) && is_array($_FILES['image']['name'])
+                                                ? $_FILES['image']['name']
+                                                : [];
+                                            $imageUrlsRaw = trim((string) ($_POST['image_urls'] ?? ''));
+                                            $hasUpload = count(array_filter($fileNames, function ($name) {
+                                                return trim((string) $name) !== '';
+                                            })) > 0;
+                                            if (!$hasUpload && $imageUrlsRaw === '') {
+                                                exit(JsonMsg('error', 'Vui lòng tải ảnh lên hoặc nhập URL ảnh'));
                                             } else {
                                                 $i = 0;
-                                                while ($i < count($_FILES['image']['name'])) {
+                                                while ($i < count($fileNames)) {
                                                     array_push($link_anh, upload_multiple_file('image', 'product', $i));
                                                     ++$i;
+                                                }
+                                                $imageUrls = array_values(array_filter(array_map(
+                                                    'trim',
+                                                    preg_split('/\r\n|\r|\n/', $imageUrlsRaw)
+                                                ), function ($url) {
+                                                    return $url !== '';
+                                                }));
+                                                if (count($imageUrls) > 10) {
+                                                    exit(JsonMsg('error', 'Mỗi tài khoản chỉ được nhập tối đa 10 URL ảnh'));
+                                                }
+                                                try {
+                                                    foreach ($imageUrls as $imageUrl) {
+                                                        $link_anh[] = upload_image_from_url($imageUrl, 'product');
+                                                    }
+                                                } catch (Throwable $imageError) {
+                                                    exit(JsonMsg('error', $imageError->getMessage()));
                                                 }
                                                 $link_anh = array_values(array_filter($link_anh, function ($v) {
                                                     return is_string($v) && $v !== '';
                                                 }));
                                                 if (count($link_anh) < 1) {
-                                                    exit(JsonMsg('error', 'Bạn đang thiếu hình ảnh'));
+                                                    exit(JsonMsg('error', 'Không có ảnh hợp lệ để đăng tài khoản'));
                                                 }
                                                 $i = 0;
                                                 while ($i < count($detail['data'])) {
@@ -253,10 +276,30 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                                     $query = $db->get_row('SELECT * FROM `accounts` WHERE `id` = \'' . $id . '\'');
                                                     $full_img = '';
                                                     if ($query['type'] == 'ACCOUNT') {
+                                                        $fileNames = isset($_FILES['image']['name']) && is_array($_FILES['image']['name'])
+                                                            ? $_FILES['image']['name']
+                                                            : [];
                                                         $i = 0;
-                                                        while ($i < count($_FILES['image']['name'])) {
+                                                        while ($i < count($fileNames)) {
                                                             array_push($link_anh, upload_multiple_file('image', 'product', $i));
                                                             ++$i;
+                                                        }
+                                                        $imageUrlsRaw = trim((string) ($_POST['image_urls'] ?? ''));
+                                                        $imageUrls = array_values(array_filter(array_map(
+                                                            'trim',
+                                                            preg_split('/\r\n|\r|\n/', $imageUrlsRaw)
+                                                        ), function ($url) {
+                                                            return $url !== '';
+                                                        }));
+                                                        if (count($imageUrls) > 10) {
+                                                            exit(JsonMsg('error', 'Mỗi tài khoản chỉ được nhập tối đa 10 URL ảnh'));
+                                                        }
+                                                        try {
+                                                            foreach ($imageUrls as $imageUrl) {
+                                                                $link_anh[] = upload_image_from_url($imageUrl, 'product');
+                                                            }
+                                                        } catch (Throwable $imageError) {
+                                                            exit(JsonMsg('error', $imageError->getMessage()));
                                                         }
                                                         $link_anh = array_values(array_filter($link_anh, function ($v) {
                                                             return is_string($v) && $v !== '';

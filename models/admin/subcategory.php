@@ -136,9 +136,16 @@ if ($action === 'add') {
         exit(JsonMsg('error', 'Sản phẩm này đã tồn tại trên hệ thống'));
     }
 
-    $thumb = upload_file('thumb', 'product');
+    $thumbUrl = trim((string) ($_POST['thumb_url'] ?? ''));
+    try {
+        $thumb = $thumbUrl !== ''
+            ? upload_image_from_url($thumbUrl, 'product')
+            : upload_file('thumb', 'product');
+    } catch (Throwable $imageError) {
+        exit(JsonMsg('error', $imageError->getMessage()));
+    }
     if (!is_string($thumb) || $thumb === '') {
-        exit(JsonMsg('error', 'Vui lòng chọn ảnh thumb hợp lệ'));
+        exit(JsonMsg('error', 'Vui lòng tải ảnh thumb hoặc nhập URL ảnh hợp lệ'));
     }
 
     $json = [
@@ -195,12 +202,19 @@ if (!is_array($currentDetail)) {
     $currentDetail = [];
 }
 
-$thumb = update_file('thumb', (string) ($currentDetail['thumb'] ?? ''), 'product');
+$thumbUrl = trim((string) ($_POST['thumb_url'] ?? ''));
+try {
+    $thumb = $thumbUrl !== ''
+        ? upload_image_from_url($thumbUrl, 'product')
+        : update_file('thumb', (string) ($currentDetail['thumb'] ?? ''), 'product');
+} catch (Throwable $imageError) {
+    exit(JsonMsg('error', $imageError->getMessage()));
+}
 if (!is_string($thumb) || $thumb === '') {
     $thumb = (string) ($currentDetail['thumb'] ?? '');
 }
 if ($thumb === '') {
-    exit(JsonMsg('error', 'Vui lòng chọn ảnh thumb hợp lệ'));
+    exit(JsonMsg('error', 'Vui lòng tải ảnh thumb hoặc nhập URL ảnh hợp lệ'));
 }
 
 $json = [

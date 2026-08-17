@@ -198,8 +198,11 @@ if ($row['type'] == 'RANDOM') {
                                 <div class="mb-2">
                                     <label>Hình ảnh</label>
                                     <img class="w-100 active mb-1" id="img_1" src="/assets/back-end/img/image-size.png">
-                                    <input name="image[]" type="file" class="form-control" onchange="document.getElementById(\'img_1\').src = window.URL.createObjectURL(this.files[0])" multiple>
+                                    <input name="image[]" type="file" class="form-control" accept=".jpg,.png,.jpeg,.gif,.webp,image/*" onchange="document.getElementById(\'img_1\').src = window.URL.createObjectURL(this.files[0])" multiple>
                                     <small>Có thể chọn 1 hoặc nhiều ảnh</small>
+                                    <div class="text-center my-2 text-muted">— hoặc nhập URL ảnh, mỗi URL một dòng —</div>
+                                    <textarea name="image_urls" class="form-control" rows="3" placeholder="https://example.com/anh-1.jpg&#10;https://example.com/anh-2.png"></textarea>
+                                    <small class="text-muted">Có thể dùng đồng thời file tải lên và URL ảnh công khai.</small>
 
                                 </div>
                             </div>

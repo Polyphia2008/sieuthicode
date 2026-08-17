@@ -69,6 +69,13 @@ if (!$user) {
         }
     }
     $listOrder = $db->get_list('SELECT * FROM `history_buy` WHERE ' . $where . ' ORDER BY `id` DESC LIMIT ' . $from . ',' . $sotin1trang . ' ');
+    $reviewedHistoryIds = [];
+    foreach ($db->get_list(
+        "SELECT `history_id` FROM `reviews` WHERE `user_id` = '" . (int) $data_user['id']
+        . "' AND `type` = 'account'"
+    ) as $reviewRow) {
+        $reviewedHistoryIds[(int) $reviewRow['history_id']] = true;
+    }
     echo '<div class="breadCrumbs">
     <div class="screen">
         <div class="center">
@@ -261,9 +268,13 @@ if (!$user) {
 
                                 </div>
                                 <div class="action-buttons">
-                                    <button class="evaluate review_button" data-product-id="';
-        echo $info['id'];
-        echo '"><img src="/assets/images/rate.png" width="30" /></button>
+                                    ';
+        if (isset($reviewedHistoryIds[(int) $info['id']])) {
+            echo '<span class="reviewed-badge" title="Bạn đã đánh giá tài khoản này">✓ Đã đánh giá</span>';
+        } else {
+            echo '<button class="evaluate review_button" data-product-id="' . (int) $info['id'] . '"><img src="/assets/images/rate.png" width="30" alt="Đánh giá" /></button>';
+        }
+        echo '
                                     <button class="detail" onclick="location.href=\'/customer/history/account/detail/';
         echo $info['trans_id'];
         echo '\';"><img src="/assets/images/research.png" width="30" /></button>

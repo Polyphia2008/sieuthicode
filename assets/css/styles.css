@@ -1702,3 +1702,24 @@ label:hover~label,
     font-size: 14px;
     color: #434657;
 }
+/* Account review states */
+.reviewed-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: #e8f7ee;
+    color: #168447;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.subcategory-reviews {
+    margin-top: 28px;
+}
+.subcategory-reviews .reviews {
+    display: grid;
+    gap: 12px;
+}

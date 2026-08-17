@@ -178,8 +178,11 @@ if (isset($_POST['UpdateCategory']) && is_admin_account($data_user)) {
     echo '">
                                 <center>
                                     <span class="btn btn-default btn-file">
-                                        <input name="thumb" type="file" class="form-control" onchange="document.getElementById(\'img_1\').src = window.URL.createObjectURL(this.files[0])">
+                                        <input name="thumb" type="file" class="form-control" accept=".jpg,.png,.jpeg,.gif,.webp,image/*" onchange="document.getElementById(\'img_1\').src = window.URL.createObjectURL(this.files[0])">
                                     </span>
+                                    <div class="text-center my-2 text-muted">— hoặc thay ảnh bằng URL —</div>
+                                    <input name="thumb_url" type="url" class="form-control" placeholder="https://example.com/anh-san-pham.jpg" oninput="if(this.value){document.getElementById(\'img_1\').src=this.value}">
+                                    <small class="text-muted">Để trống cả hai nếu muốn giữ ảnh hiện tại.</small>
                                 </center>
                             </div>
                         </div>

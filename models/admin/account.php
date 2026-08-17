@@ -3,22 +3,67 @@
 
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/libs/init.php';
 
-if (!function_exists('admin_random_account_parts')) {
+if (!function_exists('admin_random_account_parse_line')) {
     /**
-     * Split one RANDOM stock line. The documented separator is |. For the
-     * common two-field account/password schema, also accept the legacy
-     * account:password format (split only on the first colon so a password may
-     * still contain colons).
+     * Parse one RANDOM stock line into configured fields plus optional details.
+     *
+     * Supported examples for a two-field account/password schema:
+     *   user|pass
+     *   user:pass
+     *   user:pass | Name: A | Level: 30 | Rank: Kim Cương
+     *   user|pass|Name: A|Level: 30
+     *
+     * Everything after the configured fields is preserved as one optional
+     * "Thông tin chi tiết" value; it is not required for other stock lines.
      */
-    function admin_random_account_parts($line, $expectedFields)
+    function admin_random_account_parse_line($line, $expectedFields)
     {
         $line = trim((string) $line);
-        $parts = explode('|', $line);
-        if (count($parts) < $expectedFields && $expectedFields === 2
-            && strpos($line, '|') === false && strpos($line, ':') !== false) {
-            $parts = explode(':', $line, 2);
+        $segments = array_map('trim', explode('|', $line));
+        $fields = [];
+        $details = [];
+
+        // Preferred extended format: account:password | arbitrary details...
+        if ($expectedFields === 2 && isset($segments[0]) && strpos($segments[0], ':') !== false) {
+            $credentials = array_map('trim', explode(':', $segments[0], 2));
+            $fields = $credentials;
+            $details = array_slice($segments, 1);
+        } else {
+            $fields = array_slice($segments, 0, $expectedFields);
+            $details = array_slice($segments, $expectedFields);
+
+            // Legacy short format without any pipe: account:password.
+            if (count($fields) < $expectedFields && $expectedFields === 2
+                && strpos($line, '|') === false && strpos($line, ':') !== false) {
+                $fields = array_map('trim', explode(':', $line, 2));
+                $details = [];
+            }
         }
-        return array_map('trim', $parts);
+
+        $details = array_values(array_filter($details, function ($value) {
+            return trim((string) $value) !== '';
+        }));
+
+        return [
+            'fields' => $fields,
+            'details' => implode(' | ', $details),
+        ];
+    }
+}
+
+if (!function_exists('admin_encrypt_random_detail')) {
+    /** Encrypt metadata that can be longer than one RSA-2048 plaintext block. */
+    function admin_encrypt_random_detail($value)
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return '';
+        }
+        $chunks = [];
+        foreach (str_split($value, 180) as $chunk) {
+            $chunks[] = encryptData($chunk);
+        }
+        return 'rsa_chunks_v1:' . base64_encode(json_encode($chunks));
     }
 }
 
@@ -96,11 +141,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     }
                                 } else {
                                     if ($query['type'] == 'RANDOM') {
-                                        $data = Anti_xss($_POST['data']);
+                                        // Keep separators and metadata exactly as entered. Anti_xss()
+                                        // applies addslashes(), which would make JSON-like details show
+                                        // unwanted backslashes after purchase. Values are encrypted and
+                                        // escaped when the account JSON is written to SQL; output is also
+                                        // HTML-escaped in customer history.
+                                        $data = str_replace("\0", '', (string) ($_POST['data'] ?? ''));
+                                        $data = trim($data);
                                         if (empty($data)) {
                                             exit(JsonMsg('error', 'Vui lòng nhập dữ liệu cần đăng'));
                                         } else {
-                                            function upload_random($arr, $account, $name_product)
+                                            function upload_random($arr, $account, $name_product, $extraDetail = '')
 {
     $arr_data = [];
     $i = 0;
@@ -108,6 +159,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $value = isset($account[$i]) ? trim($account[$i]) : '';
         $arr_data[] = ['id' => $i, 'label' => $arr[$i]['label'], 'type' => $arr[$i]['type'], 'name' => $arr[$i]['name'], 'value' => $value === '' ? '' : encryptData($value), 'show' => $arr[$i]['show']];
         ++$i;
+    }
+    if (trim((string) $extraDetail) !== '') {
+        $arr_data[] = [
+            'id' => count($arr_data),
+            'label' => 'Thông tin chi tiết',
+            'type' => 'detail',
+            'name' => 'thongtinchitiet',
+            'value' => admin_encrypt_random_detail($extraDetail),
+            'show' => 'off',
+        ];
     }
     return ['author' => 'db.NET', 'name_product' => $name_product, 'data' => $arr_data];
 }
@@ -125,7 +186,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                             }
                                             $parsedAccounts = [];
                                             foreach ($data as $lineNumber => $line) {
-                                                $parts = admin_random_account_parts($line, count($arr));
+                                                $parsed = admin_random_account_parse_line($line, count($arr));
+                                                $parts = $parsed['fields'];
                                                 if (count($parts) !== count($arr) || in_array('', $parts, true)) {
                                                     exit(JsonMsg(
                                                         'error',
@@ -134,11 +196,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                                         . implode('|', array_column($arr, 'label'))
                                                     ));
                                                 }
-                                                $parsedAccounts[] = $parts;
+                                                $parsedAccounts[] = $parsed;
                                             }
-                                            foreach ($parsedAccounts as $account) {
+                                            foreach ($parsedAccounts as $parsedAccount) {
                                                 $encoded = json_encode(
-                                                    upload_random($arr, $account, $detail['name_product']),
+                                                    upload_random(
+                                                        $arr,
+                                                        $parsedAccount['fields'],
+                                                        $detail['name_product'],
+                                                        $parsedAccount['details']
+                                                    ),
                                                     JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
                                                 );
                                                 if ($encoded === false) {

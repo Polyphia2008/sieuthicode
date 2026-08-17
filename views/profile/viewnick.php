@@ -108,15 +108,21 @@ if (!$user) {
         echo '<div class="alert alert-warning">Dữ liệu đăng nhập của tài khoản này không tồn tại. Đây có thể là tài khoản được nhập từ danh mục lỗi trước khi cấu hình Tài khoản/Mật khẩu được sửa. Vui lòng liên hệ hỗ trợ.</div>';
     }
     foreach ($arr_detail as $item) {
-        echo '                                <div>
-                                    <p>';
-        echo $item['label'];
-        echo '</p>
-                                    <P>';
-        echo account_field_display($item);
-        echo ' <span class="ml-3 copy copyButton" data-text="';
-        echo account_field_display($item);
-        echo '"><i class="far fa-copy"></i></span></P>
+        $plainValue = account_field_display($item);
+        $fieldName = (string) ($item['name'] ?? '');
+        $isExtraDetail = $fieldName === 'thongtinchitiet' || (string) ($item['type'] ?? '') === 'detail';
+        $safeLabel = htmlspecialchars((string) ($item['label'] ?? ''), ENT_QUOTES, 'UTF-8');
+        $safeCopy = htmlspecialchars($plainValue, ENT_QUOTES, 'UTF-8');
+        $safeValue = htmlspecialchars($plainValue, ENT_QUOTES, 'UTF-8');
+        if ($isExtraDetail) {
+            // Make pipe-separated metadata readable while preserving the exact
+            // original value for the copy button.
+            $safeValue = nl2br(str_replace(' | ', "\n", $safeValue));
+        }
+        echo '                                <div class="' . ($isExtraDetail ? 'account-extra-detail' : '') . '">
+                                    <p>' . $safeLabel . '</p>
+                                    <P>' . $safeValue . ' <span class="ml-3 copy copyButton" data-text="'
+            . $safeCopy . '"><i class="far fa-copy"></i></span></P>
                                 </div>
                             ';
     }

@@ -904,6 +904,25 @@ function account_field_display($field)
         return '';
     }
     try {
+        if (strpos($value, 'rsa_chunks_v1:') === 0) {
+            $encoded = substr($value, strlen('rsa_chunks_v1:'));
+            $chunks = json_decode((string) base64_decode($encoded, true), true);
+            if (!is_array($chunks)) {
+                return '';
+            }
+            $plain = '';
+            foreach ($chunks as $chunk) {
+                if (!is_string($chunk) || $chunk === '') {
+                    return '';
+                }
+                $decodedChunk = decodecryptData($chunk);
+                if (!is_string($decodedChunk)) {
+                    return '';
+                }
+                $plain .= $decodedChunk;
+            }
+            return $plain;
+        }
         $plain = decodecryptData($value);
     } catch (Throwable $e) {
         return '';

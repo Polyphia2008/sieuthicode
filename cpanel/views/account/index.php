@@ -119,7 +119,7 @@ if ($row['type'] == 'RANDOM') {
     echo '                                    <textarea type="text" class="form-control" name="data" placeholder="';
     echo $placeholder;
     echo '"></textarea>
-                                    <small class="text-muted">Mỗi tài khoản một dòng. Dùng dấu | theo cấu hình; với Tài khoản/Mật khẩu cũng chấp nhận dấu : (ví dụ user:pass).</small>
+                                    <small class="text-muted">Mỗi tài khoản một dòng. Hỗ trợ <code>user|pass</code>, <code>user:pass</code> hoặc <code>user:pass | Name: ... | Level: 30 | Rank: ...</code>. Phần sau credential là “Thông tin chi tiết” tùy chọn và sẽ hiện riêng trong lịch sử mua.</small>
                                 </div>
                             </div>
                         ';

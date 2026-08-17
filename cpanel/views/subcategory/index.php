@@ -368,16 +368,16 @@ if (isset($_POST['AddCategory']) && is_admin_account($data_user)) {
 
     // New categories should work immediately for the common account/password
     // schema. Administrators can remove or customize this second row.
-    document.addEventListener('DOMContentLoaded', function () {
+    document.addEventListener(\'DOMContentLoaded\', function () {
         add_();
-        var types = document.getElementsByName('data_type[]');
-        var names = document.getElementsByName('data_name[]');
-        var shows = document.getElementsByName('data_show[]');
+        var types = document.getElementsByName(\'data_type[]\');
+        var names = document.getElementsByName(\'data_name[]\');
+        var shows = document.getElementsByName(\'data_show[]\');
         var index = types.length - 1;
         if (index >= 0) {
-            types[index].value = 'password';
-            names[index].value = 'Mật khẩu';
-            shows[index].value = 'off';
+            types[index].value = \'password\';
+            names[index].value = \'Mật khẩu\';
+            shows[index].value = \'off\';
         }
     });
 

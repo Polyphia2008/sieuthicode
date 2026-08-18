@@ -246,31 +246,26 @@ echo '<!DOCTYPE html>
                                             <div class="tab-pane fade show active" id="tabs-notification-69" role="tabpanel" aria-labelledby="tabs-notification">
                                                 <ul class="list-items-notify-menu1">
                                                     ';
-    foreach ($db->get_list('SELECT * FROM `posts` WHERE `status` = 1 AND `noti` = 1 ORDER BY `stt` ASC') as $noti) {
-        echo '                                                    <li>
-                                                        <a href="';
-        echo $noti['link'];
-        echo '">
-                                                            <img width="40" height="40" src="/assets/images/anhdaidien.svg" alt="';
-        echo $noti['title'];
-        echo '">
-                                                            <div class="content-item-notify">
-                                                                <h3>';
-        echo $noti['title'];
-        echo '</h3>
-                                                                <p>';
-        echo $noti['created_at'];
-        echo '</p>
-                                                            </div>
-                                                        </a>
-                                                    </li>
-                                                    ';
+    foreach (get_user_notifications($user ? (int) $data_user['id'] : 0, ['system', 'event']) as $noti) {
+        echo notification_item_html($noti);
+    }
+    foreach ($db->get_list('SELECT * FROM `posts` WHERE `status`=1 AND `noti`=1 AND `id`<>24 ORDER BY `id` DESC LIMIT 20') as $postNoti) {
+        echo notification_item_html([
+            'title' => $postNoti['title'], 'message' => '', 'link' => $postNoti['link'] ?: '/',
+            'created_at' => $postNoti['created_at'],
+        ]);
     }
     echo '                                                </ul>
                                             </div>
                                             <div class="tab-pane fade show active" id="tabs-notification-70" role="tabpanel" aria-labelledby="tabs-notification">
                                                 <ul class="list-items-notify-menu1">
-                                                </ul>
+                                                    ';
+    if ($user) {
+        foreach (get_user_notifications((int) $data_user['id'], ['transaction']) as $noti) {
+            echo notification_item_html($noti);
+        }
+    }
+    echo '                                                </ul>
                                             </div>
                                         </div>
                                     </div>
@@ -562,25 +557,14 @@ echo '<!DOCTYPE html>
                                                         aria-labelledby="tabs-notification">
                                                         <ul class="list-items-notify-menu1">
                                                         ';
-    foreach ($db->get_list('SELECT * FROM `posts` WHERE `status` = 1 AND `noti` = 1 ORDER BY `stt` ASC') as $noti) {
-        echo '                                                            <li>
-                                                                <a href="';
-        echo $noti['link'];
-        echo '">
-                                                                    <img width="40" height="40" src="/assets/images/anhdaidien.svg" alt="';
-        echo $noti['title'];
-        echo '">
-                                                                    <div class="content-item-notify">
-                                                                        <h3>';
-        echo $noti['title'];
-        echo '</h3>
-                                                                        <p>';
-        echo $noti['created_at'];
-        echo '</p>
-                                                                    </div>
-                                                                </a>
-                                                            </li>
-                                                        ';
+    foreach (get_user_notifications($user ? (int) $data_user['id'] : 0, ['system', 'event']) as $noti) {
+        echo notification_item_html($noti);
+    }
+    foreach ($db->get_list('SELECT * FROM `posts` WHERE `status`=1 AND `noti`=1 AND `id`<>24 ORDER BY `id` DESC LIMIT 20') as $postNoti) {
+        echo notification_item_html([
+            'title' => $postNoti['title'], 'message' => '', 'link' => $postNoti['link'] ?: '/',
+            'created_at' => $postNoti['created_at'],
+        ]);
     }
     echo '                                                        </ul>
                                                     </div>
@@ -588,7 +572,13 @@ echo '<!DOCTYPE html>
                                                         id="tabs-notification-70" role="tabpanel"
                                                         aria-labelledby="tabs-notification">
                                                         <ul class="list-items-notify-menu1">
-                                                        </ul>
+                                                            ';
+    if ($user) {
+        foreach (get_user_notifications((int) $data_user['id'], ['transaction']) as $noti) {
+            echo notification_item_html($noti);
+        }
+    }
+    echo '                                                        </ul>
                                                     </div>
                                                 </div>
                                             </div>

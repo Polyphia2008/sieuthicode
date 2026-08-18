@@ -59768,6 +59768,12 @@ SIEUTHICODE.customjs = function () {
 		}
 	});
 	$("body").on("change", ".radio-member-payments", function (e) {
+		// Vòng quay luôn giữ nút xác nhận trong modal khi đổi nguồn tiền.
+		// Backend vẫn kiểm tra số dư lúc submit và trả lỗi nếu không đủ.
+		if ($("#access-wheel").length && $(this).closest("#filter-comfirm-xacnhan").length) {
+			$("#access-wheel").removeClass("d-none").show();
+			return;
+		}
 		const dataMoney = $('input[name="radio-payments"]:checked').attr('data-money');
 		const dataGiamoi = $('input[name="radio-payments"]:checked').attr('data-giamoi');
 		if (Number(dataMoney) < Number(dataGiamoi)) {

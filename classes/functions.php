@@ -60,6 +60,50 @@ function subcategory_tag_html($detail)
         . '" alt="Nhãn dán">';
 }
 
+function create_user_notification($userId, $type, $title, $message = '', $link = '/')
+{
+    global $db;
+    $allowed = ['system', 'event', 'transaction'];
+    $type = in_array($type, $allowed, true) ? $type : 'system';
+    return $db->insert('user_notifications', [
+        'user_id' => max(0, (int) $userId),
+        'type' => $type,
+        'title' => trim((string) $title),
+        'message' => trim((string) $message),
+        'link' => (string) $link,
+        'is_read' => 0,
+        'created_at' => date('Y-m-d H:i:s'),
+    ]);
+}
+
+function get_user_notifications($userId, $types, $limit = 20)
+{
+    global $db;
+    $userId = max(0, (int) $userId);
+    $types = is_array($types) ? $types : [$types];
+    $allowed = ['system', 'event', 'transaction'];
+    $safeTypes = array_values(array_intersect($allowed, $types));
+    if (!$safeTypes) return [];
+    $quoted = array_map(function ($type) use ($db) {
+        return "'" . $db->escape($type) . "'";
+    }, $safeTypes);
+    $userWhere = $userId > 0 ? "(`user_id`=0 OR `user_id`='".$userId."')" : "`user_id`=0";
+    return $db->get_list(
+        "SELECT * FROM `user_notifications` WHERE ".$userWhere
+        . " AND `type` IN (".implode(',', $quoted).") ORDER BY `id` DESC LIMIT ".min(50,max(1,(int)$limit))
+    );
+}
+
+function notification_item_html($notification)
+{
+    $title = htmlspecialchars((string)($notification['title'] ?? ''), ENT_QUOTES, 'UTF-8');
+    $message = htmlspecialchars((string)($notification['message'] ?? ''), ENT_QUOTES, 'UTF-8');
+    $link = htmlspecialchars((string)($notification['link'] ?? '/'), ENT_QUOTES, 'UTF-8');
+    $date = htmlspecialchars((string)($notification['created_at'] ?? ''), ENT_QUOTES, 'UTF-8');
+    return '<li><a href="'.$link.'"><img width="40" height="40" src="/assets/images/anhdaidien.svg" alt="'.$title.'"><div class="content-item-notify"><h3>'.$title.'</h3>'
+        .($message!==''?'<small>'.$message.'</small>':'').'<p>'.$date.'</p></div></a></li>';
+}
+
 function custom_cal_days_in_month($month, $year)
 {
     if ($month < 1 || 12 < $month || $year < 0) {

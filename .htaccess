@@ -42,6 +42,8 @@ RewriteRule ^model/get_item_details/?$ models/client/get_item_details.php [L,QSA
 RewriteRule ^model/item/?$ models/client/items.php [L,QSA,NC]
 RewriteRule ^model/load/flashsale/?$ models/client/loadflashsale.php [L,QSA,NC]
 RewriteRule ^model/reviews/?$ models/client/reviews.php [L,QSA,NC]
+RewriteRule ^model/history/account/delete/?$ models/client/delete-purchase-history.php [L,QSA,NC]
+RewriteRule ^customer/history/account/download/?$ models/client/download-purchased-accounts.php [L,QSA,NC]
 RewriteRule ^model/service/?$ models/client/service.php [L,QSA,NC]
 RewriteRule ^model/service/item/?$ models/client/items.php [L,QSA,NC]
 RewriteRule ^model/spin-quest/?$ models/client/spin-quest.php [L,QSA,NC]

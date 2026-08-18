@@ -4,6 +4,19 @@
 $title = 'Dashboard';
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/cpanel/views/header.php';
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/cpanel/views/sidebar.php';
+if (isset($_POST['PurgeExpiredHistory']) && is_admin_account($data_user)) {
+    verify_csrf_token();
+    $cutoff = time() - 14 * 86400;
+    $expired = $db->get_list("SELECT `id`,`id_acc` FROM `history_buy` WHERE CAST(`created_at` AS UNSIGNED) > 0 AND CAST(`created_at` AS UNSIGNED) < '".$cutoff."'");
+    $ids = array_map(function($r){ return (int)$r['id']; }, $expired);
+    $accountIds = array_values(array_filter(array_map(function($r){ return (int)$r['id_acc']; }, $expired)));
+    $db->query('START TRANSACTION'); $ok=true;
+    if ($ids) { $list=implode(',',$ids); $ok=$db->query("DELETE FROM `reviews` WHERE `type`='account' AND `history_id` IN (".$list.")")!==false; }
+    if ($accountIds) { $ok=$db->query("DELETE FROM `accounts` WHERE `id` IN (".implode(',',$accountIds).")")!==false&&$ok; }
+    $ok=$db->query("DELETE FROM `history_buy` WHERE CAST(`created_at` AS UNSIGNED) > 0 AND CAST(`created_at` AS UNSIGNED) < '".$cutoff."'")!==false&&$ok;
+    if ($ok) { $db->query('COMMIT'); exit('<script>alert("Đã xóa '.count($ids).' lịch sử quá 2 tuần");location.href="/cpanel/account/sold";</script>'); }
+    $db->query('ROLLBACK'); exit('<script>alert("Không thể xóa lịch sử hết hạn");history.back();</script>');
+}
 $sotin1trang = 12;
 if (isset($_GET['page']) && is_admin_account($data_user)) {
     $page = max(1, (int) $_GET['page']);
@@ -61,9 +74,13 @@ echo '<main id="main-container">
 
         <div class="block block-rounded">
             <div class="block-header block-header-default">
-                <div class="block-title">
-                    DANH SÁCH TÀI KHOẢN ĐÃ BÁN
-                </div>
+                <div class="block-title">DANH SÁCH TÀI KHOẢN ĐÃ BÁN</div>
+                <form method="post" onsubmit="return confirm(\'Xóa toàn bộ lịch sử mua quá 2 tuần?\')">
+                    <input type="hidden" name="csrf_token" value="';
+echo htmlspecialchars(generate_csrf_token(), ENT_QUOTES, 'UTF-8');
+echo '">
+                    <button class="btn btn-sm btn-danger" name="PurgeExpiredHistory" value="1"><i class="fa fa-trash"></i> Xóa lịch sử quá 2 tuần</button>
+                </form>
             </div>
             <div class="block-content">
                 <div class="row mb-2">

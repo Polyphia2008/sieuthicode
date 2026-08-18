@@ -225,6 +225,13 @@ if (!$user) {
     echo $db->site('notice_purchasing');
     echo '                </div>
                 <div class="content-account">
+                    <div class="alert alert-warning purchase-retention-warning">
+                        <strong>Lưu ý:</strong> Dữ liệu tài khoản đã mua sẽ tự động bị xóa sau 2 tuần. Vui lòng tải toàn bộ tài khoản về máy ngay sau khi mua.
+                    </div>
+                    <div class="purchase-history-actions mb-3">
+                        <a class="access-confirm-sieuthicode" href="/customer/history/account/download"><i class="fa fa-download"></i> Tải tất cả tài khoản đã mua</a>
+                        <button type="button" class="cancel-confirm-nguyennhieu" id="delete-purchase-history"><i class="fa fa-trash"></i> Xóa lịch sử mua hàng</button>
+                    </div>
                     ';
     if (count($listOrder) == 0) {
         echo '                        <div class="items-content-account">
@@ -351,6 +358,18 @@ if (!$user) {
     $(document).on("click", ".btn-sample", function() {
         const content = $(this).data("content");
         $("#reviews").val(content);
+    });
+    $(document).on("click", "#delete-purchase-history", function() {
+        if (!confirm("Xóa toàn bộ lịch sử mua tài khoản? Hãy tải file sao lưu trước. Thao tác này không thể hoàn tác.")) return;
+        $.ajax({
+            url: "/model/history/account/delete", method: "POST", dataType: "JSON",
+            data: { csrf_token: csrf_token },
+            success: function(result) {
+                if (result.status === "success") { alert(result.msg); location.reload(); }
+                else alert(result.msg || "Không thể xóa lịch sử");
+            },
+            error: function(xhr) { alert(xhr.responseText || "Không thể xóa lịch sử"); }
+        });
     });
 </script>
 ';

@@ -82,6 +82,7 @@ Chỉ cần chạy migration chat (idempotent — chạy lại nhiều lần v�
 ```bash
 mysql DATABASE_NAME < database/migrations/20260812_chat_box.sql
 mysql DATABASE_NAME < database/migrations/20260818_chat_direct_admin.sql
+mysql DATABASE_NAME < database/migrations/20260819_notifications_history.sql
 ```
 
 Migration `20260818_chat_direct_admin.sql` nâng cấp chat cũ thành hội thoại riêng
@@ -230,3 +231,15 @@ Tính năng chat CSKH hai phía giữa thành viên và quản trị viên: thà
 ## Lưu ý an toàn trước khi công khai
 
 SQL cài đặt đã được loại bỏ log vận hành, giao dịch, token, thông tin người dùng thật và các khóa API đã xuất. Không đưa database đang hoạt động, `config.local.php`, `storage/installed.lock`, file RSA sinh trên hosting hoặc cookie/token phiên trở lại repository công khai.
+
+## Cron xóa dữ liệu tài khoản đã mua sau 2 tuần
+
+Website đang hoạt động nên cấu hình cron cPanel chạy mỗi ngày một lần:
+
+```bash
+0 3 * * * /usr/local/bin/php /home/CPANEL_USER/public_html/models/cron/purchase-history.php
+```
+
+Thay `CPANEL_USER` và đường dẫn PHP theo hosting. Script chỉ chạy ở CLI, xóa lịch sử
+quá 14 ngày, review liên quan và bản ghi account chứa credential. Khách hàng được
+cảnh báo và có nút tải toàn bộ credential thành file TXT trước khi dữ liệu hết hạn.

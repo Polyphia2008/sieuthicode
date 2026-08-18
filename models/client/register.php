@@ -79,6 +79,13 @@ if ($postedToken === '' || $sessionToken === ''
                                                             $session->send($username);
                                                             // Auto-login sau đăng ký: persistent login mặc định 2 ngày.
                                                             if ($newUserId > 0) {
+                                                                create_user_notification(
+                                                                    $newUserId,
+                                                                    'system',
+                                                                    'Chào mừng bạn đến với ' . $db->site('title'),
+                                                                    'Tài khoản của bạn đã được tạo thành công.',
+                                                                    '/customer/profile'
+                                                                );
                                                                 $authExpiresAt = auth_token_issue($db, $newUserId, false, $ipRegister);
                                                                 if ($authExpiresAt > 0) {
                                                                     $_SESSION['auth_expires_at'] = $authExpiresAt;

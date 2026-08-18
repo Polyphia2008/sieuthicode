@@ -193,6 +193,13 @@ function PlusCredits($user_id, $amount, $reason, $transactionId = null)
     $isPlus = $db->cong('users', 'money', $amount, ' `id` = \'' . $user_id . '\' ');
     if ($isPlus) {
         $db->cong('users', 'total_money', $amount, ' `id` = \'' . $user_id . '\' ');
+        create_user_notification(
+            (int) $user_id,
+            'transaction',
+            'Cộng số dư thành công',
+            '+' . format_cash($amount) . 'đ — ' . (string) $reason,
+            '/customer/balance'
+        );
         return true;
     } else {
         return false;

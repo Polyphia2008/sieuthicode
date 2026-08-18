@@ -8,11 +8,22 @@ if (isset($_POST['SaveSettings']) && is_admin_account($data_user)) {
     if ($db->site('status_demo') != 0) {
         exit('<script type="text/javascript">if(!alert("Đây là trang web demo bạn không thể thực hiện chức năng này !")){window.history.back().location.reload();}</script>');
     } else {
+        $oldEventNotice = (string) $db->site('notice_event');
         foreach ($_POST as $__key => $value) {
             $key = $__key;
             $db->update('options', ['value' => $value], ' `key` = \'' . $key . '\' ');
         }
         uploadAndSaveOption('img_event', 'img_event');
+        $newEventNotice = trim((string) ($_POST['notice_event'] ?? ''));
+        if ($newEventNotice !== '' && $newEventNotice !== trim($oldEventNotice)) {
+            create_user_notification(
+                0,
+                'event',
+                'Thông báo sự kiện mới',
+                trim(strip_tags($newEventNotice)),
+                '/event'
+            );
+        }
         exit('<script type="text/javascript">if(!alert("Lưu thành công !")){window.history.back().location.reload();}</script>');
     }
 } else {

@@ -13,7 +13,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $account = chat_require_login();
 chat_require_csrf();
-$conversation = chat_get_conversation_by_user((int) $account['id']);
+$adminId = (int) ($_POST['admin_id'] ?? 0);
+$conversation = chat_get_conversation_by_user((int) $account['id'], $adminId);
 if (!$conversation) {
     chat_json('success', 'Lịch sử trò chuyện đã trống', ['deleted' => 0]);
 }

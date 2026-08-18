@@ -39,7 +39,8 @@ Không cần ionCube Loader. Các file phụ thuộc ionCube cũ đã được t
    Google OAuth và Pusher.
 
 Trình cài đặt tự động: import base SQL (`shoprobloxv4 (2).sql`), import migration
-chat (`database/migrations/20260812_chat_box.sql`), tạo tài khoản admin, ghi
+chat (`database/migrations/20260812_chat_box.sql`), direct-admin chat/presence
+(`database/migrations/20260818_chat_direct_admin.sql`), tạo tài khoản admin, ghi
 `config.local.php` (quyền 600) và tạo `storage/installed.lock`. Sau khi cài xong,
 `/install` **tự khoá** — mọi truy cập vào `/install` sẽ bị chuyển về trang chủ.
 
@@ -80,7 +81,12 @@ Chỉ cần chạy migration chat (idempotent — chạy lại nhiều lần v�
 
 ```bash
 mysql DATABASE_NAME < database/migrations/20260812_chat_box.sql
+mysql DATABASE_NAME < database/migrations/20260818_chat_direct_admin.sql
 ```
+
+Migration `20260818_chat_direct_admin.sql` nâng cấp chat cũ thành hội thoại riêng
+với từng admin/superadmin và thêm bảng trạng thái online. Hãy chạy file này sau
+migration chat cơ bản khi cập nhật website đang hoạt động.
 
 ### Bổ sung superadmin + đăng nhập 2/7 ngày cho website cũ
 

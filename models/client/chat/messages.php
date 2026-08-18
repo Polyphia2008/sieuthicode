@@ -16,7 +16,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 }
 
 $account = chat_require_login();
-$conversation = chat_get_conversation_by_user($account['id']);
+$adminId = (int) ($_GET['admin_id'] ?? 0);
+$conversation = chat_get_conversation_by_user($account['id'], $adminId);
 
 if (!$conversation) {
     chat_json('success', 'OK', [
@@ -48,6 +49,10 @@ $readRow = $db->get_row(
     "SELECT MAX(`id`) AS `last_read_id` FROM `chat_messages` WHERE `conversation_id` = '"
     . $conversationId . "' AND `sender_role` = 'user' AND `is_read` = 1"
 );
+$adminPresence = $db->get_row(
+    "SELECT `last_seen` FROM `chat_presence` WHERE `user_id` = '"
+    . (int) ($conversation['admin_id'] ?? 0) . "' LIMIT 1"
+);
 
 chat_json('success', 'OK', [
     'messages' => $messages,
@@ -56,5 +61,6 @@ chat_json('success', 'OK', [
         'status' => $conversation['status'],
         'unread' => (int) $conversation['unread_user'],
         'last_read_user_message_id' => (int) ($readRow['last_read_id'] ?? 0),
+        'admin_online' => chat_is_online($adminPresence['last_seen'] ?? null),
     ],
 ]);

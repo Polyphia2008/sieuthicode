@@ -15,7 +15,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $account = chat_require_login();
 chat_require_csrf();
 
-$conversation = $db->get_row('SELECT * FROM `chat_conversations` WHERE `user_id` = ' . (int) $account['id'] . ' LIMIT 1');
+$adminId = (int) ($_POST['admin_id'] ?? 0);
+$conversation = chat_get_conversation_by_user((int) $account['id'], $adminId);
 if (!$conversation) {
     chat_json('success', 'OK', ['unread' => 0]);
 }

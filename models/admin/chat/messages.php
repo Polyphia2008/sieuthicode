@@ -29,7 +29,11 @@ foreach ($rows as $row) {
     $messages[] = chat_format_message($row);
 }
 
-$owner = $db->get_row('SELECT `id`, `username`, `name`, `email` FROM `users` WHERE `id` = ' . (int) $conversation['user_id'] . ' LIMIT 1');
+$owner = $db->get_row(
+    'SELECT u.`id`,u.`username`,u.`name`,u.`email`,p.`last_seen` FROM `users` u'
+    . ' LEFT JOIN `chat_presence` p ON p.`user_id`=u.`id`'
+    . ' WHERE u.`id`=' . (int) $conversation['user_id'] . ' LIMIT 1'
+);
 
 chat_json('success', 'OK', [
     'messages' => $messages,
@@ -43,5 +47,6 @@ chat_json('success', 'OK', [
         'username' => (string) ($owner['username'] ?? ''),
         'name' => (string) ($owner['name'] ?? ''),
         'email' => (string) ($owner['email'] ?? ''),
+        'online' => chat_is_online($owner['last_seen'] ?? null),
     ],
 ]);

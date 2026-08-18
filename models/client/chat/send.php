@@ -16,7 +16,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $account = chat_require_login();
 chat_require_csrf();
 
-$conversation = chat_get_or_create_conversation($account['id']);
+$adminId = (int) ($_POST['admin_id'] ?? 0);
+$conversation = chat_get_or_create_conversation($account['id'], $adminId);
 if ($conversation['status'] === 'closed') {
     chat_json('error', 'Hội thoại đã được đóng. Vui lòng bấm "Mở lại hội thoại" để tiếp tục nhắn tin.', [
         'conversation_status' => 'closed',

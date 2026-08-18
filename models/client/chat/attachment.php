@@ -50,6 +50,10 @@ $isAdmin = is_admin_account($data_user);
 if (!$isAdmin && (int) $conversation['user_id'] !== (int) $data_user['id']) {
     chat_attachment_fail(403, 'Forbidden');
 }
+if ($isAdmin && !is_superadmin_account($data_user)
+    && (int) ($conversation['admin_id'] ?? 0) !== (int) $data_user['id']) {
+    chat_attachment_fail(403, 'Forbidden');
+}
 
 // 4. Resolve path từ DB + chống path traversal bằng realpath.
 $relative = (string) $message['attachment']; // dạng: upload/chat/<random>.<ext>

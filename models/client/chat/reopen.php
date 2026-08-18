@@ -15,7 +15,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $account = chat_require_login();
 chat_require_csrf();
 
-$conversation = chat_get_or_create_conversation($account['id']);
+$adminId = (int) ($_POST['admin_id'] ?? 0);
+$conversation = chat_get_or_create_conversation($account['id'], $adminId);
 if ($conversation['status'] === 'open') {
     chat_json('success', 'Hội thoại đang mở', ['conversation_status' => 'open']);
 }

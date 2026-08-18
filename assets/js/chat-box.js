@@ -30,6 +30,8 @@
     var backBtn = document.getElementById('chat-back');
     var deleteHistoryBtn = document.getElementById('chat-delete-history');
     var wrapEl = document.querySelector('.chat-wrap');
+    var chatMainEl = document.getElementById('chat-main');
+    var adminId = chatMainEl ? parseInt(chatMainEl.dataset.adminId, 10) || 0 : 0;
 
     var POLL_INTERVAL = 4000;
     var lastId = 0;
@@ -140,14 +142,24 @@
         });
     }
 
+    function applyAdminPresence(isOnline) {
+        if (!statusText) return;
+        statusText.dataset.presenceLabel = isOnline ? 'Đang hoạt động' : 'Không hoạt động';
+    }
+
     function applyConversationStatus(status) {
         var closed = status === 'closed';
         closedEl.style.display = closed ? '' : 'none';
         composerEl.style.display = closed ? 'none' : '';
         if (statusText) {
-            statusText.textContent = closed ? 'Hội thoại đã đóng' : 'Sẵn sàng hỗ trợ bạn';
-            statusText.style.color = closed ? '#e4a11b' : '#31a24c';
+            var presenceLabel = statusText.dataset.presenceLabel || 'Sẵn sàng hỗ trợ bạn';
+            statusText.textContent = closed ? 'Hội thoại đã đóng' : presenceLabel;
+            statusText.style.color = closed ? '#e4a11b' : (presenceLabel === 'Đang hoạt động' ? '#31a24c' : '#999');
         }
+    }
+
+    function withAdmin(url) {
+        return url + (url.indexOf('?') === -1 ? '?' : '&') + 'admin_id=' + encodeURIComponent(adminId);
     }
 
     function apiGet(url) {
@@ -166,7 +178,7 @@
 
     function loadInitial() {
         setState('loading');
-        apiGet('/model/chat/messages')
+        apiGet(withAdmin('/model/chat/messages'))
             .then(function (json) {
                 if (json.status !== 'success') {
                     setState('error');
@@ -180,6 +192,7 @@
                     appendMessages(messages, true);
                 }
                 var conv = json.data.conversation;
+                if (conv) applyAdminPresence(!!conv.admin_online);
                 applyConversationStatus(conv && conv.status ? conv.status : 'open');
                 applyReadStatus(conv ? conv.last_read_user_message_id : 0);
                 markRead();
@@ -193,7 +206,7 @@
         if (lastId === 0) {
             return;
         }
-        apiGet('/model/chat/messages?after_id=' + lastId)
+        apiGet(withAdmin('/model/chat/messages?after_id=' + lastId))
             .then(function (json) {
                 if (json.status !== 'success') {
                     return;
@@ -203,6 +216,7 @@
                     appendMessages(messages, false);
                     markRead();
                 }
+                applyAdminPresence(!!json.data.conversation.admin_online);
                 applyConversationStatus(json.data.conversation.status);
                 applyReadStatus(json.data.conversation.last_read_user_message_id);
             })
@@ -212,6 +226,7 @@
     function markRead() {
         var fd = new FormData();
         fd.append('csrf_token', csrfToken);
+        fd.append('admin_id', adminId);
         apiPost('/model/chat/read', fd).then(function () {
             document.querySelectorAll('.chat-badge-unread').forEach(function (badge) {
                 badge.style.display = 'none';
@@ -242,6 +257,7 @@
 
         var fd = new FormData();
         fd.append('csrf_token', csrfToken);
+        fd.append('admin_id', adminId);
         fd.append('message', inputEl.value);
         if (hasFile) {
             fd.append('attachment', attachInput.files[0]);
@@ -310,6 +326,7 @@
         reopenBtn.addEventListener('click', function () {
             var fd = new FormData();
             fd.append('csrf_token', csrfToken);
+            fd.append('admin_id', adminId);
             apiPost('/model/chat/reopen', fd)
                 .then(function (json) {
                     if (json.status === 'success') {
@@ -333,6 +350,7 @@
             deleteHistoryBtn.disabled = true;
             var fd = new FormData();
             fd.append('csrf_token', csrfToken);
+            fd.append('admin_id', adminId);
             apiPost('/model/chat/delete', fd)
                 .then(function (json) {
                     if (json.status !== 'success') {

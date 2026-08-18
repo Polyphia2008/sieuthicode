@@ -63,6 +63,7 @@ function chat_require_login()
     if (!$user || empty($data_user) || empty($data_user['id'])) {
         chat_json('error', 'Vui lòng đăng nhập để sử dụng chat hỗ trợ', null, 401);
     }
+    chat_presence_touch((int) $data_user['id']);
     return $data_user;
 }
 
@@ -76,6 +77,26 @@ function chat_require_admin()
         chat_json('error', 'Bạn không có quyền truy cập chức năng này', null, 403);
     }
     return $account;
+}
+
+function chat_presence_touch($userId)
+{
+    global $db;
+    $userId = (int) $userId;
+    if ($userId <= 0) {
+        return;
+    }
+    $now = date('Y-m-d H:i:s');
+    $db->query(
+        "INSERT INTO `chat_presence` (`user_id`,`last_seen`) VALUES ('" . $userId . "','" . $now . "')"
+        . " ON DUPLICATE KEY UPDATE `last_seen` = VALUES(`last_seen`)"
+    );
+}
+
+function chat_is_online($lastSeen, $seconds = 120)
+{
+    $timestamp = strtotime((string) $lastSeen);
+    return $timestamp > 0 && time() - $timestamp <= (int) $seconds;
 }
 
 /**
@@ -94,11 +115,16 @@ function chat_require_csrf()
  * Chỉ đọc hội thoại của một thành viên — KHÔNG tạo mới.
  * Dùng cho các endpoint GET/polling để tránh tạo conversation rỗng.
  */
-function chat_get_conversation_by_user($userId)
+function chat_get_conversation_by_user($userId, $adminId = 0)
 {
     global $db;
     $userId = (int) $userId;
-    return $db->get_row('SELECT * FROM `chat_conversations` WHERE `user_id` = ' . $userId . ' LIMIT 1');
+    $adminId = (int) $adminId;
+    $whereAdmin = $adminId > 0 ? " AND `admin_id` = '" . $adminId . "'" : '';
+    return $db->get_row(
+        "SELECT * FROM `chat_conversations` WHERE `user_id` = '" . $userId . "'"
+        . $whereAdmin . ' ORDER BY `last_message_at` DESC, `id` DESC LIMIT 1'
+    );
 }
 
 /**
@@ -107,21 +133,33 @@ function chat_get_conversation_by_user($userId)
  * Chịu được race condition: nếu 2 request tạo đồng thời, request thua sẽ
  * bắt duplicate key rồi đọc lại conversation hiện có thay vì trả 500.
  */
-function chat_get_or_create_conversation($userId)
+function chat_get_or_create_conversation($userId, $adminId)
 {
     global $db;
     $userId = (int) $userId;
-    $conversation = chat_get_conversation_by_user($userId);
+    $adminId = (int) $adminId;
+    if ($adminId <= 0) {
+        chat_json('error', 'Vui lòng chọn quản trị viên để trò chuyện', null, 422);
+    }
+    $admin = $db->get_row(
+        "SELECT `id` FROM `users` WHERE `id` = '" . $adminId . "'"
+        . " AND `level` IN ('admin','superadmin') AND `banned` = 0 LIMIT 1"
+    );
+    if (!$admin) {
+        chat_json('error', 'Quản trị viên không tồn tại hoặc đã ngừng hoạt động', null, 404);
+    }
+    $conversation = chat_get_conversation_by_user($userId, $adminId);
     if ($conversation) {
         return $conversation;
     }
     $db->insert('chat_conversations', [
         'user_id' => $userId,
+        'admin_id' => $adminId,
         'status' => 'open',
         'created_at' => date('Y-m-d H:i:s'),
         'updated_at' => date('Y-m-d H:i:s'),
     ]);
-    $conversation = chat_get_conversation_by_user($userId);
+    $conversation = chat_get_conversation_by_user($userId, $adminId);
     if (!$conversation) {
         chat_json('error', 'Không thể khởi tạo hội thoại, vui lòng thử lại', null, 500);
     }
@@ -146,6 +184,10 @@ function chat_get_conversation_for($conversationId, $account)
     $isAdmin = is_admin_account($account);
     if (!$isAdmin && (int) $conversation['user_id'] !== (int) $account['id']) {
         chat_json('error', 'Bạn không có quyền truy cập hội thoại này', null, 403);
+    }
+    if ($isAdmin && !is_superadmin_account($account)
+        && (int) ($conversation['admin_id'] ?? 0) !== (int) $account['id']) {
+        chat_json('error', 'Hội thoại này được gửi tới quản trị viên khác', null, 403);
     }
     return $conversation;
 }

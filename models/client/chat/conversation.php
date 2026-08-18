@@ -14,21 +14,13 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 }
 
 $account = chat_require_login();
-$conversation = chat_get_conversation_by_user($account['id']);
-
-if (!$conversation) {
-    chat_json('success', 'OK', [
-        'conversation' => null,
-        'unread' => 0,
-    ]);
-}
+$summary = $db->get_row(
+    "SELECT COUNT(*) AS `total`, COALESCE(SUM(`unread_user`),0) AS `unread`"
+    . " FROM `chat_conversations` WHERE `user_id` = '" . (int) $account['id'] . "'"
+);
 
 chat_json('success', 'OK', [
-    'conversation' => [
-        'id' => (int) $conversation['id'],
-        'status' => $conversation['status'],
-        'last_message_at' => $conversation['last_message_at'],
-        'unread' => (int) $conversation['unread_user'],
-    ],
-    'unread' => (int) $conversation['unread_user'],
+    'conversation' => null,
+    'total_conversations' => (int) ($summary['total'] ?? 0),
+    'unread' => (int) ($summary['unread'] ?? 0),
 ]);

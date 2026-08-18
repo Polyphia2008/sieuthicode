@@ -8,6 +8,7 @@
 CREATE TABLE IF NOT EXISTS `chat_conversations` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `user_id` INT NOT NULL COMMENT 'ID thành viên sở hữu hội thoại (users.id)',
+  `admin_id` INT NOT NULL DEFAULT 0 COMMENT 'Admin/superadmin nhận hội thoại',
   `status` ENUM('open','closed') NOT NULL DEFAULT 'open',
   `last_message_id` INT UNSIGNED DEFAULT NULL,
   `last_message_at` DATETIME DEFAULT NULL,
@@ -16,7 +17,8 @@ CREATE TABLE IF NOT EXISTS `chat_conversations` (
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_chat_conversations_user` (`user_id`),
+  UNIQUE KEY `uq_chat_conversations_user_admin` (`user_id`,`admin_id`),
+  KEY `idx_chat_conversations_admin` (`admin_id`,`last_message_at`),
   KEY `idx_chat_conversations_status` (`status`),
   KEY `idx_chat_conversations_last_msg` (`last_message_at`),
   KEY `idx_chat_conversations_unread_admin` (`unread_admin`),

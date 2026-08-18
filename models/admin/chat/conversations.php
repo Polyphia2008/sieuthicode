@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     chat_json('error', 'Phương thức không được hỗ trợ', null, 405);
 }
 
-chat_require_admin();
+$adminAccount = chat_require_admin();
 
 $status = isset($_GET['status']) ? strtolower(trim((string) $_GET['status'])) : '';
 if (!in_array($status, ['open', 'closed'], true)) {
@@ -27,6 +27,9 @@ $perPage = 15;
 $offset = ($page - 1) * $perPage;
 
 $where = ' WHERE 1=1';
+if (!is_superadmin_account($adminAccount)) {
+    $where .= " AND c.`admin_id` = '" . (int) $adminAccount['id'] . "'";
+}
 if ($status !== '') {
     $where .= ' AND c.`status` = \'' . $status . '\'';
 }
@@ -68,7 +71,12 @@ foreach ($rows as $row) {
     ];
 }
 
-$totalUnread = (int) ($db->get_row('SELECT COALESCE(SUM(`unread_admin`), 0) AS total FROM `chat_conversations`')['total'] ?? 0);
+$unreadWhere = !is_superadmin_account($adminAccount)
+    ? " WHERE `admin_id` = '" . (int) $adminAccount['id'] . "'"
+    : '';
+$totalUnread = (int) ($db->get_row(
+    'SELECT COALESCE(SUM(`unread_admin`), 0) AS total FROM `chat_conversations`' . $unreadWhere
+)['total'] ?? 0);
 
 chat_json('success', 'OK', [
     'conversations' => $items,

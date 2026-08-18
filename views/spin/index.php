@@ -3,16 +3,29 @@
 
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/libs/init.php';
 if (isset($_GET['id'])) {
-    $id = Anti_xss($_GET['id']);
-    $row = $db->get_row(' SELECT * FROM `spin_quests` WHERE `id` = \'' . $id . '\'  ');
-    if (!$row) {
-        new Redirect('/');
+    $id = (int) $_GET['id'];
+    if ($id <= 0) {
+        new Redirect('/minigame');
+        exit;
     }
-    $unit = $db->site('unit') ?? null;
-    $items = json_decode($row['prizes'], true);
+    $row = $db->get_row("SELECT * FROM `spin_quests` WHERE `id` = '" . $id . "' LIMIT 1");
+    if (!$row) {
+        // Redirect() không tự dừng PHP; nếu không exit, toàn bộ phần dưới tiếp
+        // tục truy cập $row=false và tạo hàng loạt warning/SQL NOT IN ().
+        new Redirect('/minigame');
+        exit;
+    }
+    $unit = $db->site('unit') ?? '';
+    $items = json_decode((string) ($row['prizes'] ?? ''), true);
+    if (!is_array($items)) {
+        $items = [];
+    }
     $prizes = [];
     foreach ($items as $__key => $item) {
-        $index = $__key;
+        if (!is_array($item) || !array_key_exists('value', $item)) {
+            continue;
+        }
+        $index = count($prizes);
         $prizes[] = ['location' => $index + 1, 'ten' => 'Code ' . $item['value'] . ' ' . $unit, 'noidung' => 'Chúc mừng bạn đã quay trúng ' . $item['value'] . ' ' . $unit, 'percentpage' => 0];
     }
     $query_top_day = 'SELECT 
@@ -35,9 +48,10 @@ if (isset($_GET['id'])) {
     LIMIT 10;
     ';
 } else {
-    new Redirect('/');
+    new Redirect('/minigame');
+    exit;
 }
-$title = $row['name'] . ' | ' . $db->site('title');
+$title = (string) $row['name'] . ' | ' . $db->site('title');
 require_once realpath($_SERVER['DOCUMENT_ROOT'] . '/views/header.php');
 echo '<div id="bre-nickgame">
     <div class="breadCrumbs">

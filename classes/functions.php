@@ -50,7 +50,12 @@ function subcategory_tag_html($detail)
     $src = preg_match('#^https?://#i', $tag)
         ? $tag
         : rtrim((string) DOMAIN, '/') . '/' . ltrim($tag, '/');
-    return '<img class="subcategory-card-tag" src="'
+    $tagPath = (string) (parse_url($tag, PHP_URL_PATH) ?: $tag);
+    $tagFile = strtolower(basename($tagPath));
+    // tag35MO là artwork dạng dải băng chéo “GIẢM GIÁ”; canvas của nó
+    // cần nhô ra ngoài góc ảnh nhiều hơn badge dọc NEW/GIẢM 30%.
+    $extraClass = $tagFile === 'tag35mo.png' ? ' subcategory-card-tag--corner-ribbon' : '';
+    return '<img class="subcategory-card-tag' . $extraClass . '" src="'
         . htmlspecialchars($src, ENT_QUOTES, 'UTF-8')
         . '" alt="Nhãn dán">';
 }

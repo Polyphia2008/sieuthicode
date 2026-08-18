@@ -1760,3 +1760,25 @@ label:hover~label,
         width: 70px;
     }
 }
+
+/* Dải băng chéo “GIẢM GIÁ”: đẩy canvas về phía góc ngoài của card để
+ * dải băng ôm góc thay vì phủ sâu lên nội dung thumbnail. */
+.items-content-index .scale-img .subcategory-card-tag--corner-ribbon {
+    top: -11px;
+    right: -15px;
+    width: 90px;
+}
+@media (max-width: 767.98px) {
+    .items-content-index .scale-img .subcategory-card-tag--corner-ribbon {
+        top: -9px;
+        right: -13px;
+        width: 82px;
+    }
+}
+@media (max-width: 479.98px) {
+    .items-content-index .scale-img .subcategory-card-tag--corner-ribbon {
+        top: -8px;
+        right: -11px;
+        width: 74px;
+    }
+}

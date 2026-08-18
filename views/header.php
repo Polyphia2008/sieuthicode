@@ -20,6 +20,7 @@ if ($_SESSION['rate_limit'][$userIP]['request_count'] > $maxRequests) {
 
 $cachedCssVersion = (string) (@filemtime(APP_ROOT . '/assets/css/cached.css') ?: 1);
 $stylesCssVersion = (string) (@filemtime(APP_ROOT . '/assets/css/styles.css') ?: 1);
+$notificationUnread = $user ? count_unread_user_notifications((int) $data_user['id']) : 0;
 
 echo '<!DOCTYPE html>
 <html lang="vi">
@@ -222,8 +223,13 @@ echo '<!DOCTYPE html>
                             </span>
                         </a>
                         <div class="notification-menu1">
-                            <span class="span-menu open-notification1">
-                                <img src="/assets/images/ring.svg" alt="">
+                            <span class="span-menu open-notification1 notification-bell-wrap">
+                                <img src="/assets/images/ring.svg" alt="Thông báo">
+                                <span class="notification-unread-badge" data-notification-badge style="';
+echo $notificationUnread > 0 ? '' : 'display:none';
+echo '">';
+echo $notificationUnread > 99 ? '99+' : $notificationUnread;
+echo '</span>
                             </span>
                             <div class="lists-notification1">
                                 <div class="header-notification1">
@@ -523,8 +529,13 @@ echo '<!DOCTYPE html>
                                     </span>
                                 </a>
                                 <div class="notification-menu1">
-                                    <span class="span-menu open-notification1">
-                                        <img src="/assets/images/ring.svg" alt="">
+                                    <span class="span-menu open-notification1 notification-bell-wrap">
+                                        <img src="/assets/images/ring.svg" alt="Thông báo">
+                                        <span class="notification-unread-badge" data-notification-badge style="';
+echo $notificationUnread > 0 ? '' : 'display:none';
+echo '">';
+echo $notificationUnread > 99 ? '99+' : $notificationUnread;
+echo '</span>
                                     </span>
                                     <div class="lists-notification1">
                                         <div class="header-notification1">

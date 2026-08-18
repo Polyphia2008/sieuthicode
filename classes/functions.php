@@ -94,6 +94,19 @@ function get_user_notifications($userId, $types, $limit = 20)
     );
 }
 
+function count_unread_user_notifications($userId)
+{
+    global $db;
+    $userId = (int) $userId;
+    if ($userId <= 0) return 0;
+    $row = $db->get_row(
+        "SELECT COUNT(n.`id`) AS total FROM `user_notifications` n"
+        . " LEFT JOIN `user_notification_reads` r ON r.`notification_id`=n.`id` AND r.`user_id`='".$userId."'"
+        . " WHERE (n.`user_id`=0 OR n.`user_id`='".$userId."') AND r.`notification_id` IS NULL"
+    );
+    return (int) ($row['total'] ?? 0);
+}
+
 function notification_item_html($notification)
 {
     $title = htmlspecialchars((string)($notification['title'] ?? ''), ENT_QUOTES, 'UTF-8');

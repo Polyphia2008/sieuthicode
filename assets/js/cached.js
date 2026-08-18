@@ -61703,3 +61703,16 @@ $(document).ready(function () {
 		});
 	});
 });
+// Đánh dấu toàn bộ thông báo đã đọc khi người dùng mở bảng thông báo.
+$(document).on('click', '.open-notification1', function () {
+    if (!$('[data-notification-badge]:visible').length) return;
+    $.ajax({
+        url: '/model/notifications/read', method: 'POST', dataType: 'JSON',
+        data: { csrf_token: csrf_token },
+        success: function (result) {
+            if (result && result.status === 'success') {
+                $('[data-notification-badge]').hide().text('0');
+            }
+        }
+    });
+});

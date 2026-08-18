@@ -12,6 +12,14 @@ CREATE TABLE IF NOT EXISTS `user_notifications` (
   KEY `idx_user_notifications_broadcast` (`user_id`,`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS `user_notification_reads` (
+  `notification_id` BIGINT UNSIGNED NOT NULL,
+  `user_id` INT NOT NULL,
+  `read_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`notification_id`,`user_id`),
+  KEY `idx_notification_reads_user` (`user_id`,`read_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Remove the obsolete seeded Flash Sale notification from legacy databases.
 DELETE FROM `posts`
 WHERE `id` = 24 AND `noti` = 1

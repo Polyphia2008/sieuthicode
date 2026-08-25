@@ -56,6 +56,14 @@ echo '/menu"><span>Danh mục</span></a></li>
                     </a>
                 </li>
                 <li class="col-4 c-px-8 c-pt-8 c-pb-8">
+                    <a href="/kiem-tien-online">
+                        <div class="c-pt-10 c-pb-10 brs-8 menu-category-item justify-content-center">
+                            <i class="fas fa-coins" style="font-size:30px;color:#2767df;margin-bottom:6px"></i>
+                            <p class="fw-400 mb-0 text-primary-color">Kiếm tiền</p>
+                        </div>
+                    </a>
+                </li>
+                <li class="col-4 c-px-8 c-pt-8 c-pb-8">
                     <a href="/reviews">
                         <div class="c-pt-10 c-pb-10 brs-8 menu-category-item justify-content-center">
                             <img src="/assets/images/tintuc.jpg" alt="tin-tuc">

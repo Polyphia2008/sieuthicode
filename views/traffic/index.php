@@ -1,6 +1,37 @@
 <?php
 require_once realpath($_SERVER['DOCUMENT_ROOT']).'/libs/init.php';if(!$user){new Redirect('/login');exit;}
-if($_SERVER['REQUEST_METHOD']==='POST'&&isset($_POST['SubmitProof'])){$posted=(string)($_POST['csrf_token']??'');if(!hash_equals((string)($_SESSION['csrf_token']??''),$posted)){header('HTTP/1.1 419 Authentication Timeout',true,419);exit('Invalid CSRF');}$taskId=(int)$_POST['task_id'];$proof=trim((string)$_POST['proof'];$sub=$db->get_row("SELECT s.*,t.wait_seconds FROM `traffic_submissions` s JOIN `traffic_tasks` t ON t.id=s.task_id WHERE s.`task_id`='".$taskId."' AND s.`user_id`='".(int)$data_user['id']."' LIMIT 1");if(!$sub)$_SESSION['traffic_error']='Bạn cần bắt đầu nhiệm vụ trước';elseif(time()-strtotime((string)$sub['started_at'])<(int)$sub['wait_seconds'])$_SESSION['traffic_error']='Bạn chưa chờ đủ thời gian yêu cầu';elseif($proof==='')$_SESSION['traffic_error']='Vui lòng nhập mã hoặc minh chứng';elseif($sub['status']==='approved')$_SESSION['traffic_error']='Nhiệm vụ đã được duyệt';else{$db->update('traffic_submissions',['proof'=>$proof,'status'=>'pending','submitted_at'=>date('Y-m-d H:i:s')],"`id`='".(int)$sub['id']."'");$_SESSION['traffic_success']='Đã gửi minh chứng, vui lòng chờ admin duyệt';}new Redirect('/kiem-tien-online');exit;}
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['SubmitProof'])) {
+    $posted = (string) ($_POST['csrf_token'] ?? '');
+    if (!hash_equals((string) ($_SESSION['csrf_token'] ?? ''), $posted)) {
+        header('HTTP/1.1 419 Authentication Timeout', true, 419);
+        exit('Invalid CSRF');
+    }
+    $taskId = (int) ($_POST['task_id'] ?? 0);
+    $proof = trim((string) ($_POST['proof'] ?? ''));
+    $sub = $db->get_row(
+        "SELECT s.*,t.`wait_seconds` FROM `traffic_submissions` s"
+        . " JOIN `traffic_tasks` t ON t.`id`=s.`task_id`"
+        . " WHERE s.`task_id`='" . $taskId . "' AND s.`user_id`='" . (int) $data_user['id'] . "' LIMIT 1"
+    );
+    if (!$sub) {
+        $_SESSION['traffic_error'] = 'Bạn cần bắt đầu nhiệm vụ trước';
+    } elseif (time() - strtotime((string) $sub['started_at']) < (int) $sub['wait_seconds']) {
+        $_SESSION['traffic_error'] = 'Bạn chưa chờ đủ thời gian yêu cầu';
+    } elseif ($proof === '') {
+        $_SESSION['traffic_error'] = 'Vui lòng nhập mã hoặc minh chứng';
+    } elseif ($sub['status'] === 'approved') {
+        $_SESSION['traffic_error'] = 'Nhiệm vụ đã được duyệt';
+    } else {
+        $db->update('traffic_submissions', [
+            'proof' => $proof,
+            'status' => 'pending',
+            'submitted_at' => date('Y-m-d H:i:s'),
+        ], "`id`='" . (int) $sub['id'] . "'");
+        $_SESSION['traffic_success'] = 'Đã gửi minh chứng, vui lòng chờ admin duyệt';
+    }
+    new Redirect('/kiem-tien-online');
+    exit;
+}
 $title='Nhiệm vụ Traffic | '.$db->site('title');require_once realpath($_SERVER['DOCUMENT_ROOT'].'/views/header.php');
 $tasks=$db->get_list("SELECT t.*,s.status AS submission_status,s.proof FROM `traffic_tasks` t LEFT JOIN `traffic_submissions` s ON s.`task_id`=t.`id` AND s.`user_id`='".(int)$data_user['id']."' WHERE t.`status`=1 ORDER BY t.`id` DESC");
 $history=$db->get_list("SELECT s.*,t.title FROM `traffic_submissions` s JOIN `traffic_tasks` t ON t.id=s.task_id WHERE s.user_id='".(int)$data_user['id']."' ORDER BY s.id DESC LIMIT 30");

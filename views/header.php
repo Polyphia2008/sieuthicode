@@ -215,6 +215,7 @@ echo '<!DOCTYPE html>
                         </div>
                     </div>
                     <div class="button-menu1">
+                        <a href="/kiem-tien-online" class="btn-earning-desktop"><i class="fas fa-coins"></i> Kiếm tiền</a>
                         <a href="/customer/deposit" class="btn-naptien1">Nạp Tiền</a>
                         <a class="notification-menu1 chat-header-link" href="/chat-box" style="position: relative;" title="Chat hỗ trợ">
                             <span class="span-menu">

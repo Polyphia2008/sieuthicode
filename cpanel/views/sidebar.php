@@ -292,6 +292,12 @@ echo '</span></span>
                 </li>
 
                 <li class="nav-main-item">
+                    <a class="nav-main-link" href="/cpanel/traffic">
+                        <i class="nav-main-link-icon fa fa-coins"></i>
+                        <span class="nav-main-link-name">Nhiệm vụ Traffic</span>
+                    </a>
+                </li>
+                <li class="nav-main-item">
                     <a class="nav-main-link" href="/cpanel/banner">
                         <i class="nav-main-link-icon fa fa-image"></i>
                         <span class="nav-main-link-name">Banner</span>

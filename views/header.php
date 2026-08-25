@@ -528,6 +528,7 @@ echo '</span>
                                         <span class="chat-badge-unread" data-chat-badge style="display:none">0</span>
                                     </span>
                                 </a>
+                                <a class="notification-menu1" href="/kiem-tien-online" title="Kiếm tiền online"><span class="span-menu"><i class="fas fa-coins" style="font-size:20px;margin-top:10px;color:#2767df"></i></span></a>
                                 <div class="notification-menu1">
                                     <span class="span-menu open-notification1 notification-bell-wrap">
                                         <img src="/assets/images/ring.svg" alt="Thông báo">

@@ -596,6 +596,7 @@ function installer_planned_tables()
         APP_ROOT . '/database/migrations/20260814_superadmin_sessions.sql',
         APP_ROOT . '/database/migrations/20260818_chat_direct_admin.sql',
         APP_ROOT . '/database/migrations/20260819_notifications_history.sql',
+        APP_ROOT . '/database/migrations/20260825_traffic_tasks.sql',
     ];
     foreach ($files as $file) {
         if (!is_file($file) || !is_readable($file)) {

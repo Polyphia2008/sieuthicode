@@ -57,3 +57,11 @@ function traffic_effective_reward($task, $timestamp = null)
 {
     return (int) ($task['reward'] ?? 0) + (traffic_bonus_is_active($task, $timestamp) ? (int) ($task['bonus_reward'] ?? 0) : 0);
 }
+
+function traffic_wallet_get($userId)
+{
+    global $db; $userId=(int)$userId;
+    $db->query("INSERT IGNORE INTO `traffic_wallets` (`user_id`,`balance`,`total_earned`,`total_withdrawn`,`updated_at`) VALUES ('".$userId."',0,0,0,NOW())");
+    return $db->get_row("SELECT * FROM `traffic_wallets` WHERE `user_id`='".$userId."' LIMIT 1") ?: ['user_id'=>$userId,'balance'=>0,'total_earned'=>0,'total_withdrawn'=>0];
+}
+function traffic_min_withdraw(){global $db;$r=$db->get_row("SELECT `setting_value` FROM `traffic_settings` WHERE `setting_key`='min_withdraw'");return max(0,(int)($r['setting_value']??10000));}

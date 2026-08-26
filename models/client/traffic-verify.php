@@ -18,9 +18,10 @@ if(!$task){$db->query('ROLLBACK');traffic_verify_redirect('Nhiệm vụ không c
 $reward=traffic_effective_reward($task,time());
 $updated=$db->update('traffic_attempts',['status'=>'completed','reward'=>$reward,'completed_at'=>date('Y-m-d H:i:s')],"`id`='".(int)$attempt['id']."' AND `status`='issued'");
 if(!$updated||$db->affected_rows()!==1){$db->query('ROLLBACK');traffic_verify_redirect('Nhiệm vụ đã được xử lý');}
-$credited=PlusCredits((int)$attempt['user_id'],$reward,'Thưởng hoàn thành nhiệm vụ Traffic #'.$attempt['task_id'],'TRAFFIC_AUTO_'.$attempt['id']);
-if(!$credited){$db->query('ROLLBACK');traffic_verify_redirect('Không thể cộng tiền thưởng');}
+$walletOk=$db->query("INSERT INTO `traffic_wallets` (`user_id`,`balance`,`total_earned`,`total_withdrawn`,`updated_at`) VALUES ('".(int)$attempt['user_id']."','".$reward."','".$reward."',0,NOW()) ON DUPLICATE KEY UPDATE `balance`=`balance`+VALUES(`balance`),`total_earned`=`total_earned`+VALUES(`total_earned`),`updated_at`=NOW()");
+if($walletOk===false){$db->query('ROLLBACK');traffic_verify_redirect('Không thể cộng tiền vào số dư nhiệm vụ');}
+create_user_notification((int)$attempt['user_id'],'transaction','Hoàn thành nhiệm vụ Traffic','Đã cộng +'.format_cash($reward).'đ vào số dư nhiệm vụ','/kiem-tien-online');
 $db->query('COMMIT');
-$message='Hoàn thành nhiệm vụ! Đã cộng '.format_cash($reward).'đ vào số dư';
+$message='Hoàn thành nhiệm vụ! Đã cộng '.format_cash($reward).'đ vào số dư nhiệm vụ';
 if(traffic_bonus_is_active($task))$message.=' (đã gồm thưởng khung giờ vàng)';
 traffic_verify_redirect($message,true);

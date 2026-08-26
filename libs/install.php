@@ -599,6 +599,7 @@ function installer_planned_tables()
         APP_ROOT . '/database/migrations/20260825_traffic_tasks.sql',
         APP_ROOT . '/database/migrations/20260826_traffic_auto_verify.sql',
         APP_ROOT . '/database/migrations/20260827_traffic_management_bonus.sql',
+        APP_ROOT . '/database/migrations/20260828_traffic_wallet.sql',
     ];
     foreach ($files as $file) {
         if (!is_file($file) || !is_readable($file)) {

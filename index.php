@@ -153,7 +153,12 @@ echo '
         </div>
     </div>
 </section>
-
+';
+$homeNoticeHtml = trim((string) $db->site('notice_home'));
+if ($homeNoticeHtml !== '') {
+    echo '<section class="screen home-notification-wrap"><div class="center"><div class="notification-section"><div class="notification-section-head"><i class="fas fa-bullhorn"></i><strong>Thông báo quan trọng</strong></div><div class="p-3 home-notification-content">' . $homeNoticeHtml . '</div></div></div></section>';
+}
+echo '
 <section class="screen">
     <div class="center">
         <div id="section-linklienket" class="owl-carousel owl-theme background-teamplate2">

@@ -437,6 +437,9 @@ echo (string) (@filemtime(APP_ROOT . '/assets/js/cached.js') ?: 1);
 echo '"></script>
 <script src="/assets/js/swiper-slider-conf.js"></script>
 <script src="/assets/js/custom.js"></script>
+<script src="/assets/js/site-navbar.js?v=';
+echo (string) (@filemtime(APP_ROOT . '/assets/js/site-navbar.js') ?: 1);
+echo '"></script>
 ';
 if ($user) {
     echo '<script>

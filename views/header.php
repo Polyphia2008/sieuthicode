@@ -498,6 +498,7 @@ echo '</span>
             <div class="screen">
                 <div class="center">
                     <div class="container-mmenu">
+                        <button type="button" class="mobile-sidebar-toggle" id="mobile-sidebar-toggle" aria-label="Mở menu"><i class="fas fa-bars"></i></button>
                         <div class="logo-mmenu">
                             <a href="/">
                                 <img width="140" height="40" src="';
@@ -617,6 +618,36 @@ echo '</span>
                 </div>
             </div>
         </div>
+        <div class="mobile-sidebar-overlay" id="mobile-sidebar-overlay"></div>
+        <aside class="mobile-site-sidebar" id="mobile-site-sidebar" aria-hidden="true">
+            <div class="mobile-sidebar-head"><a href="/"><img src="';
+echo $db->site('logo');
+echo '" alt="';
+echo $db->site('title');
+echo '"></a><button type="button" id="mobile-sidebar-close" aria-label="Đóng menu">&times;</button></div>
+            <div class="mobile-sidebar-user"><img src="/assets/images/anhdaidien.svg" alt=""><div><strong>';
+echo $user ? htmlspecialchars((string)$data_user['username'], ENT_QUOTES, 'UTF-8') : 'Khách';
+echo '</strong><span>';
+echo $user ? 'Số dư: '.format_cash($data_user['money']).'đ' : 'Đăng nhập để sử dụng đầy đủ';
+echo '</span></div></div>
+            <nav class="mobile-sidebar-nav">
+                <a href="/"><i class="fas fa-home"></i> Trang chủ</a>
+                <a href="/menu"><i class="fas fa-th-large"></i> Danh mục</a>
+                <a href="/nick-game"><i class="fas fa-gamepad"></i> Mua tài khoản</a>
+                <a href="/kiem-tien-online"><i class="fas fa-coins"></i> Kiếm tiền online</a>
+                <details><summary><i class="fas fa-wallet"></i> Nạp tiền</summary><a href="/customer/deposit">Nạp thẻ / Ngân hàng</a><a href="/customer/history/card">Lịch sử nạp thẻ</a><a href="/customer/history/bank">Lịch sử nạp Bank</a></details>
+                <details><summary><i class="fas fa-clock-rotate-left"></i> Lịch sử</summary><a href="/customer/history/account">Tài khoản đã mua</a><a href="/customer/history/service">Lịch sử dịch vụ</a><a href="/customer/history/minigame">Lịch sử minigame</a></details>
+                <a href="/chat-box"><i class="far fa-comments"></i> Tin nhắn</a>
+                <a href="/reviews"><i class="fas fa-star"></i> Đánh giá</a>
+                <a href="/tin-tuc"><i class="far fa-newspaper"></i> Tin tức / Hướng dẫn</a>
+                <a href="/customer/profile"><i class="fas fa-user"></i> Tài khoản</a>
+                <a href="/customer/wishlists"><i class="fas fa-heart"></i> Yêu thích</a>
+                ';
+if ($user) { echo '<a class="is-danger" href="/logout"><i class="fas fa-sign-out-alt"></i> Đăng xuất</a>'; }
+else { echo '<a href="/login"><i class="fas fa-sign-in-alt"></i> Đăng nhập</a>'; }
+echo '
+            </nav>
+        </aside>
         <div id="search-mobile-hidden">
             <div class="screen">
                 <div class="center">

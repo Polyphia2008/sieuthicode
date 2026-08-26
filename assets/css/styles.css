@@ -1789,3 +1789,25 @@ label:hover~label,
 
 /* Link Kiếm tiền trên navbar desktop */
 .btn-earning-desktop{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:40px;padding:0 15px;border-radius:9px;background:#eef4ff;color:#2767df!important;font-size:13px;font-weight:700;white-space:nowrap}.btn-earning-desktop:hover{background:#dfeaff;color:#1856bf!important}@media(max-width:991.98px){.btn-earning-desktop{display:none}}
+
+/* Sticky navbar nâng cấp: compact khi cuộn */
+#menu{transition:box-shadow .25s,transform .25s;background:#fff}
+#menu .container-menu1,#menu .menu-list{transition:all .25s ease}
+#menu.is-scrolled{box-shadow:0 7px 24px rgba(20,35,65,.13)}
+#menu.is-scrolled .container-menu1{min-height:56px;padding-top:5px;padding-bottom:5px}
+#menu.is-scrolled .logo-menu img{width:112px!important;height:34px!important;object-fit:contain}
+#menu.is-scrolled .menu-list{max-height:0;opacity:0;overflow:hidden;pointer-events:none}
+#menu:not(.is-scrolled) .menu-list{max-height:90px;opacity:1}
+
+/* Mobile sidebar */
+.mobile-sidebar-toggle{display:none;border:0;background:#f5f7fa;color:#344054;width:38px;height:38px;border-radius:10px;font-size:17px}
+.mobile-sidebar-overlay{position:fixed;inset:0;z-index:10020;background:rgba(10,20,38,.52);opacity:0;visibility:hidden;transition:.25s}
+.mobile-site-sidebar{position:fixed;left:0;top:0;bottom:0;z-index:10021;width:min(86vw,350px);background:#fff;transform:translateX(-105%);transition:transform .28s ease;box-shadow:15px 0 45px rgba(0,0,0,.2);overflow-y:auto}
+.mobile-sidebar-overlay.is-open{opacity:1;visibility:visible}.mobile-site-sidebar.is-open{transform:translateX(0)}body.mobile-sidebar-open{overflow:hidden}
+.mobile-sidebar-head{display:flex;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid #edf0f4}.mobile-sidebar-head img{width:150px;max-height:45px;object-fit:contain}.mobile-sidebar-head button{border:0;background:#f1f3f6;width:34px;height:34px;border-radius:50%;font-size:21px}
+.mobile-sidebar-user{display:flex;gap:11px;align-items:center;padding:15px 17px;background:linear-gradient(135deg,#f3f7ff,#fff)}.mobile-sidebar-user img{width:46px;height:46px}.mobile-sidebar-user strong,.mobile-sidebar-user span{display:block}.mobile-sidebar-user span{font-size:12px;color:#7e8795;margin-top:2px}
+.mobile-sidebar-nav{padding:10px}.mobile-sidebar-nav>a,.mobile-sidebar-nav summary{display:flex;align-items:center;gap:11px;padding:12px 13px;border-radius:9px;color:#273247;font-size:14px;cursor:pointer;list-style:none}.mobile-sidebar-nav>a:hover,.mobile-sidebar-nav summary:hover{background:#eef4ff;color:var(--primary-color)}.mobile-sidebar-nav i{width:19px;text-align:center;color:var(--primary-color)}.mobile-sidebar-nav details>a{display:block;margin-left:32px;padding:9px 10px;color:#657085;font-size:13px}.mobile-sidebar-nav .is-danger{color:#d43838}.mobile-sidebar-nav .is-danger i{color:#d43838}
+@media(max-width:991px){.mobile-sidebar-toggle{display:grid;place-items:center}.container-mmenu{grid-template-columns:auto 1fr auto!important;justify-items:stretch}.logo-mmenu{justify-self:start}.logo-mmenu img{width:120px!important;object-fit:contain}.mmenu-end{justify-self:end}#menu-mobile.is-scrolled{box-shadow:0 6px 20px rgba(20,35,65,.12)}}
+
+/* Khối thông báo HTML trên trang chủ */
+.home-notification-wrap{margin:18px auto 8px}.notification-section{overflow:hidden;border:1px solid #e3e7ee;border-radius:14px;background:#fff;box-shadow:0 6px 22px rgba(31,50,88,.07)}.notification-section-head{display:flex;align-items:center;gap:9px;padding:12px 16px;background:linear-gradient(90deg,color-mix(in srgb,var(--primary-color) 12%,#fff),#fff);border-bottom:1px solid #edf0f4;color:var(--primary-color)}.home-notification-content{line-height:1.65;color:#303a4c}.home-notification-content>*:last-child{margin-bottom:0}.home-notification-content img,.home-notification-content iframe{max-width:100%}@media(max-width:767.98px){.home-notification-wrap{margin:10px auto}.notification-section{border-radius:10px}.notification-section-head{padding:10px 12px}.home-notification-content{font-size:13px;padding:12px!important}}

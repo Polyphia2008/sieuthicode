@@ -251,7 +251,7 @@ if (isset($_POST['SaveSettings']) && is_admin_account($data_user)) {
                             <div class="col-md-12">
                                 <div class="row">
                                     <div class="col-md-12 mb-3">
-                                        <label class="col-form-label">Thông báo ngoài trang chủ</label>
+                                        <label class="col-form-label">Nội dung khối thông báo quan trọng ngoài trang chủ (hỗ trợ HTML/CKEditor)</label>
                                         <textarea name="notice_home" id="notice_home" class="form-control" rows="5">';
     echo $db->site('notice_home');
     echo '</textarea>

@@ -85,6 +85,7 @@ mysql DATABASE_NAME < database/migrations/20260818_chat_direct_admin.sql
 mysql DATABASE_NAME < database/migrations/20260819_notifications_history.sql
 mysql DATABASE_NAME < database/migrations/20260825_traffic_tasks.sql
 mysql DATABASE_NAME < database/migrations/20260826_traffic_auto_verify.sql
+mysql DATABASE_NAME < database/migrations/20260827_traffic_management_bonus.sql
 ```
 
 Migration `20260818_chat_direct_admin.sql` nâng cấp chat cũ thành hội thoại riêng

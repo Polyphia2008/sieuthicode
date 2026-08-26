@@ -16,7 +16,9 @@ $rawToken=bin2hex(random_bytes(32));$binding=traffic_client_binding();$expires=d
 $ok=$db->insert('traffic_attempts',['task_id'=>$id,'user_id'=>$userId,'token_hash'=>hash('sha256',$rawToken),'session_hash'=>$binding['session_hash'],'device_hash'=>$binding['device_hash'],'ip_hash'=>$binding['ip_hash'],'provider'=>'','short_url'=>'','status'=>'issued','reward'=>(int)$task['reward'],'expires_at'=>$expires,'created_at'=>date('Y-m-d H:i:s')]);
 $attemptId=(int)$db->get_id_insert();if(!$ok||$attemptId<=0){$db->query('ROLLBACK');$_SESSION['traffic_error']='Không thể tạo phiên nhiệm vụ';new Redirect('/kiem-tien-online');exit;}$db->query('COMMIT');
 $callback=rtrim((string)DOMAIN,'/').'/traffic/verify?token='.rawurlencode($rawToken);
-[$shortOk,$shortUrl,$provider]=traffic_auto_shorten($callback);
+$configuredProvider=(string)($task['provider']??'auto');
+if($configuredProvider==='auto')[$shortOk,$shortUrl,$provider]=traffic_auto_shorten($callback);
+else{[$shortOk,$shortUrl]=traffic_shorten($configuredProvider,$callback,$callback);$provider=$configuredProvider;}
 if(!$shortOk){$db->update('traffic_attempts',['status'=>'failed'],"`id`='".$attemptId."'");$_SESSION['traffic_error']='Không thể lấy link nhiệm vụ: '.$shortUrl;new Redirect('/kiem-tien-online');exit;}
 $db->update('traffic_attempts',['short_url'=>$shortUrl,'provider'=>$provider],"`id`='".$attemptId."'");
 header('Cache-Control: no-store');header('Location: '.$shortUrl,true,302);exit;

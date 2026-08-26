@@ -1,5 +1,6 @@
 <?php
 require_once realpath($_SERVER['DOCUMENT_ROOT']) . '/libs/init.php';
+require_once APP_ROOT . '/libs/traffic.php';
 if (!$user) { new Redirect('/login'); exit; }
 $title = 'Nhiệm vụ Traffic | ' . $db->site('title');
 require_once realpath($_SERVER['DOCUMENT_ROOT'] . '/views/header.php');
@@ -20,15 +21,22 @@ $earningStats = $db->get_row(
     . " WHERE `user_id`='".$userId."' AND `status`='completed'"
 ) ?: [];
 $statusLabels = [
-    'issued' => ['Đang thực hiện','is-progress'],
-    'completed' => ['Đã hoàn thành','is-completed'],
-    'failed' => ['Khởi tạo thất bại','is-failed'],
-    'expired' => ['Đã hết hạn','is-expired'],
+    'issued' => ['Đang thực hiện','is-progress','fa-clock'],
+    'completed' => ['Đã hoàn thành','is-completed','fa-check-circle'],
+    'failed' => ['Khởi tạo thất bại','is-failed','fa-circle-xmark'],
+    'expired' => ['Đã hết hạn','is-expired','fa-hourglass-end'],
 ];
+$bonusTasks = array_values(array_filter($tasks, function ($task) {
+    return traffic_bonus_is_active($task);
+}));
 ?>
 <link rel="stylesheet" href="/assets/css/traffic.css?v=<?= (int)(@filemtime(APP_ROOT.'/assets/css/traffic.css')?:1) ?>">
 <nav class="earning-mobile-nav"><a href="/kiem-tien-online" class="active"><i class="fas fa-coins"></i> Nhiệm vụ</a><a href="#traffic-history"><i class="fas fa-clock-rotate-left"></i> Lịch sử</a><a href="/customer/balance"><i class="fas fa-wallet"></i> Số dư</a></nav>
 <section class="screen traffic-page"><div class="center">
+<?php if ($bonusTasks): ?>
+<div class="home-promo-strip" id="traffic-promo-strip" role="button" tabindex="0"><div class="home-promo-strip-bg"></div><div class="home-promo-strip-inner"><span class="home-promo-strip-icon"><i class="fas fa-gift"></i></span><div class="home-promo-strip-text"><span class="home-promo-strip-tag">Khuyến mãi</span><span class="home-promo-strip-msg">Đang có <strong><?=count($bonusTasks)?> nhiệm vụ thưởng thêm trong khung giờ vàng</strong> — Click để xem chi tiết</span></div><span class="home-promo-strip-cta"><i class="fas fa-arrow-right"></i></span></div></div>
+<div class="traffic-promo-modal" id="traffic-promo-modal"><div class="promo-modal-card"><button type="button" class="promo-modal-close">&times;</button><h3><i class="fas fa-gift"></i> Ưu đãi khung giờ vàng</h3><?php foreach($bonusTasks as $bt):?><div class="promo-task-row"><div><strong><?=htmlspecialchars($bt['title'],ENT_QUOTES)?></strong><small><?=htmlspecialchars(substr((string)$bt['bonus_start'],0,5))?> - <?=htmlspecialchars(substr((string)$bt['bonus_end'],0,5))?></small></div><span>+<?=format_cash($bt['bonus_reward'])?>đ</span></div><?php endforeach;?></div></div>
+<?php endif; ?>
   <header class="traffic-banner">
     <div class="traffic-banner-copy"><span class="traffic-eyebrow"><i class="fas fa-bolt"></i> KIẾM TIỀN ONLINE</span><h1>Hoàn thành nhiệm vụ,<br><strong>nhận thưởng tự động</strong></h1><p>Hệ thống tạo phiên xác thực riêng và cộng tiền ngay khi bạn vượt link thành công.</p><a href="#available-tasks" class="traffic-primary-cta"><i class="fas fa-wand-magic-sparkles"></i> Bắt đầu nhận nhiệm vụ</a></div>
     <div class="traffic-banner-visual"><div class="traffic-coin coin-one">₫</div><div class="traffic-coin coin-two">₫</div><i class="fas fa-chart-line"></i></div>
@@ -37,7 +45,7 @@ $statusLabels = [
   <div class="traffic-stats">
     <article><span class="stat-icon is-blue"><i class="fas fa-list-check"></i></span><div><small>Nhiệm vụ đang mở</small><strong><?= count($tasks) ?></strong></div></article>
     <article><span class="stat-icon is-green"><i class="fas fa-circle-check"></i></span><div><small>Hoàn thành hôm nay</small><strong><?= (int)($earningStats['completed_today']??0) ?></strong></div></article>
-    <article><span class="stat-icon is-orange"><i class="fas fa-sack-dollar"></i></span><div><small>Tổng thưởng đã nhận</small><strong><?= format_cash((int)($earningStats['earned_total']??0)) ?>đ</strong></div></article>
+    <article><span class="stat-icon is-orange"><i class="fas fa-gift"></i></span><div><small>Tổng thưởng đã nhận</small><strong><?= format_cash((int)($earningStats['earned_total']??0)) ?>đ</strong></div></article>
     <article><span class="stat-icon is-purple"><i class="fas fa-wallet"></i></span><div><small>Số dư hiện tại</small><strong><?= format_cash((int)$data_user['money']) ?>đ</strong></div></article>
   </div>
 
@@ -50,9 +58,9 @@ $statusLabels = [
       <div class="traffic-tasks">
       <?php if (!$tasks): ?>
         <div class="traffic-empty-state"><i class="fas fa-inbox"></i><h3>Hiện chưa có nhiệm vụ Traffic</h3><p>Vui lòng quay lại sau khi admin tạo nhiệm vụ mới.</p><?php if(is_admin_account($data_user)):?><a href="/cpanel/traffic" class="traffic-start">Mở trang quản lý</a><?php endif;?></div>
-      <?php else: foreach($tasks as $task): $used=(int)($task['used_today']??0);$max=max(1,(int)$task['max_per_day']);$remaining=max(0,$max-$used);$percent=min(100,($used/$max)*100); ?>
+      <?php else: foreach($tasks as $task): $used=(int)($task['used_today']??0);$max=max(1,(int)$task['max_per_day']);$remaining=max(0,$max-$used);$percent=min(100,($used/$max)*100);$activeBonus=traffic_bonus_is_active($task);$displayReward=traffic_effective_reward($task); ?>
         <article class="traffic-task-card">
-          <div class="task-card-top"><span class="task-number">#<?= (int)$task['id'] ?></span><span class="task-reward"><i class="fas fa-coins"></i> +<?=format_cash($task['reward'])?>đ</span></div>
+          <div class="task-card-top"><span class="task-number">#<?= (int)$task['id'] ?></span><span class="task-reward"><i class="fas fa-coins"></i> +<?=format_cash($displayReward)?>đ</span></div><?php if($activeBonus):?><div class="task-bonus-label"><i class="fas fa-gift"></i> Bonus +<?=format_cash($task['bonus_reward'])?>đ đến <?=htmlspecialchars(substr((string)$task['bonus_end'],0,5))?></div><?php endif;?>
           <h3><?=htmlspecialchars($task['title'],ENT_QUOTES)?></h3>
           <p><i class="fas fa-shield-halved"></i> Xác thực tự động theo phiên trình duyệt và địa chỉ mạng</p>
           <div class="task-quota"><div><span>Lượt hôm nay</span><strong><?=$used?>/<?=$max?></strong></div><div class="quota-track"><i style="width:<?=$percent?>%"></i></div></div>
@@ -65,12 +73,13 @@ $statusLabels = [
     <aside class="traffic-howto"><h3><i class="fas fa-route"></i> Quy trình xác thực</h3><ol><li><b>1</b><div><strong>Nhận nhiệm vụ</strong><span>Tạo mã phiên dùng một lần</span></div></li><li><b>2</b><div><strong>Vượt link</strong><span>Hoàn thành yêu cầu của provider</span></div></li><li><b>3</b><div><strong>Quay về hệ thống</strong><span>Kiểm tra tài khoản, phiên, thiết bị và IP</span></div></li><li><b>4</b><div><strong>Nhận thưởng</strong><span>Cộng tiền tự động vào số dư</span></div></li></ol><div class="traffic-security-note"><i class="fas fa-lock"></i><p>Dùng cùng trình duyệt và mạng trong suốt quá trình. Không chia sẻ link hoặc đổi VPN.</p></div></aside>
   </div>
 
-  <section id="traffic-history" class="traffic-history"><div class="traffic-section-title"><div><span>HOẠT ĐỘNG GẦN ĐÂY</span><h2>Lịch sử nhiệm vụ</h2></div><i class="fas fa-clock-rotate-left"></i></div><div class="traffic-table-wrap"><table><thead><tr><th>Nhiệm vụ</th><th>Thời gian</th><th>Trạng thái</th><th>Thưởng</th></tr></thead><tbody><?php if(!$history):?><tr><td colspan="4" class="traffic-history-empty">Bạn chưa tham gia nhiệm vụ nào.</td></tr><?php else:foreach($history as $h):$status=$statusLabels[$h['status']]??['Không xác định','is-unknown'];?><tr><td><strong><?=htmlspecialchars($h['title'],ENT_QUOTES)?></strong><small>#<?= (int)$h['id'] ?></small></td><td><?=date('d/m/Y H:i',strtotime($h['created_at']))?></td><td><span class="traffic-status <?=$status[1]?>"><?=$status[0]?></span></td><td class="history-reward">+<?=format_cash($h['reward'])?>đ</td></tr><?php endforeach;endif;?></tbody></table></div></section>
+  <section id="traffic-history" class="traffic-history"><div class="traffic-section-title"><div><span>HOẠT ĐỘNG GẦN ĐÂY</span><h2>Lịch sử nhiệm vụ</h2></div><i class="fas fa-clock-rotate-left"></i></div><div class="traffic-table-wrap"><table><thead><tr><th>Nhiệm vụ</th><th>Thời gian</th><th>Trạng thái</th><th>Thưởng</th></tr></thead><tbody><?php if(!$history):?><tr><td colspan="4" class="traffic-history-empty">Bạn chưa tham gia nhiệm vụ nào.</td></tr><?php else:foreach($history as $h):$status=$statusLabels[$h['status']]??['Không xác định','is-unknown'];?><tr><td><strong><?=htmlspecialchars($h['title'],ENT_QUOTES)?></strong><small>#<?= (int)$h['id'] ?></small></td><td><?=date('d/m/Y H:i',strtotime($h['created_at']))?></td><td><div class="history-status-display"><span class="history-status-icon <?=$status[1]?>"><i class="fas <?=$status[2]?>"></i></span><div><strong class="<?=$status[1]?>"><?=$status[0]?></strong><small>Trạng thái</small></div></div></td><td class="history-reward">+<?=format_cash($h['reward'])?>đ</td></tr><?php endforeach;endif;?></tbody></table></div></section>
 </div></section>
 
 <div class="traffic-loading-modal" id="traffic-loading-modal" aria-hidden="true"><div class="loading-card"><div class="loading-spinner"><i class="fas fa-link"></i></div><h3>Đang tạo nhiệm vụ...</h3><p>Hệ thống đang tạo phiên xác thực và lấy link từ nhà cung cấp. Vui lòng không đóng trang.</p><div class="loading-progress"><i></i></div></div></div>
 <script>
 document.querySelectorAll('.traffic-start-form').forEach(function(form){form.addEventListener('submit',function(){var modal=document.getElementById('traffic-loading-modal');modal.classList.add('is-visible');modal.setAttribute('aria-hidden','false');var btn=form.querySelector('button');btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';});});
+(function(){var strip=document.getElementById('traffic-promo-strip'),modal=document.getElementById('traffic-promo-modal');if(!strip||!modal)return;function open(){modal.classList.add('is-visible')}function close(){modal.classList.remove('is-visible')}strip.addEventListener('click',open);strip.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();open()}});modal.querySelector('.promo-modal-close').addEventListener('click',close);modal.addEventListener('click',function(e){if(e.target===modal)close()});})();
 <?php if(($_GET['traffic']??'')==='success'):?>document.addEventListener('DOMContentLoaded',function(){if(typeof alertSuccess==='function')alertSuccess('Hoàn thành nhiệm vụ','Tiền thưởng đã được cộng vào số dư');history.replaceState({},document.title,'/kiem-tien-online');});<?php endif;?>
 </script>
 <?php require_once realpath($_SERVER['DOCUMENT_ROOT'].'/views/footer.php');?>

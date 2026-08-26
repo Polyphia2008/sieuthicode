@@ -298,6 +298,12 @@ function installer_handle_install()
             installer_journal_clear(); @unlink(installer_config_path()); mysqli_close($mysqli);
             installer_json(false, 'Import migration traffic auto verify thất bại. ' . $err, [], 500);
         }
+        // 2g) Traffic management + time-window bonus.
+        if (!installer_import_sql($mysqli, APP_ROOT . '/database/migrations/20260827_traffic_management_bonus.sql', $created, $err)) {
+            installer_journal_add_created($created); installer_rollback_created($mysqli, $created);
+            installer_journal_clear(); @unlink(installer_config_path()); mysqli_close($mysqli);
+            installer_json(false, 'Import migration traffic bonus thất bại. ' . $err, [], 500);
+        }
         // Cập nhật journal với danh sách bảng đã tạo (phòng trường hợp bị kill
         // sau đây — ví dụ ngay trước bước tạo admin).
         installer_journal_add_created($created);

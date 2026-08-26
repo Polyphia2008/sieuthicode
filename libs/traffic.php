@@ -41,3 +41,19 @@ function traffic_auto_shorten($destination)
     }
     return [false, implode('; ', $errors), ''];
 }
+
+function traffic_bonus_is_active($task, $timestamp = null)
+{
+    $bonus = (int) ($task['bonus_reward'] ?? 0);
+    $start = (string) ($task['bonus_start'] ?? '');
+    $end = (string) ($task['bonus_end'] ?? '');
+    if ($bonus <= 0 || $start === '' || $end === '') return false;
+    $now = date('H:i:s', $timestamp ?: time());
+    // Support both normal windows (08:00-12:00) and overnight (22:00-02:00).
+    return $start <= $end ? ($now >= $start && $now <= $end) : ($now >= $start || $now <= $end);
+}
+
+function traffic_effective_reward($task, $timestamp = null)
+{
+    return (int) ($task['reward'] ?? 0) + (traffic_bonus_is_active($task, $timestamp) ? (int) ($task['bonus_reward'] ?? 0) : 0);
+}

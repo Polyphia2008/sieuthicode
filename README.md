@@ -84,6 +84,7 @@ mysql DATABASE_NAME < database/migrations/20260812_chat_box.sql
 mysql DATABASE_NAME < database/migrations/20260818_chat_direct_admin.sql
 mysql DATABASE_NAME < database/migrations/20260819_notifications_history.sql
 mysql DATABASE_NAME < database/migrations/20260825_traffic_tasks.sql
+mysql DATABASE_NAME < database/migrations/20260826_traffic_auto_verify.sql
 ```
 
 Migration `20260818_chat_direct_admin.sql` nâng cấp chat cũ thành hội thoại riêng
@@ -248,7 +249,7 @@ cảnh báo và có nút tải toàn bộ credential thành file TXT trước kh
 ## Nhiệm vụ Traffic
 
 - User: `/kiem-tien-online`
-- Admin duyệt/tạo nhiệm vụ: `/cpanel/traffic`
+- Admin tạo nhiệm vụ: `/cpanel/traffic` (chỉ tên, lượt/account/ngày và tiền thưởng).
 - Token Link4m/LAYMA/Link2m chỉ nhập trong panel superadmin và được mã hóa trong DB.
 - Không hardcode token API vào source public. Token từng dán vào chat/log phải được thu hồi và tạo mới.
-- API rút gọn không cung cấp callback hoàn thành nên phần thưởng dùng quy trình admin duyệt minh chứng thủ công.
+- Khi nhận nhiệm vụ, backend tạo callback token một lần, rút gọn callback qua provider và tự cộng thưởng khi callback quay về đúng session + user-agent/language + IP đã nhận nhiệm vụ.

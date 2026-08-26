@@ -13,3 +13,31 @@ function traffic_shorten($provider,$destination,$backup=''){
  else {if(!is_array($json)||($json['status']??'')!=='success'||empty($json['shortenedUrl']))return [false,(string)($json['message']??'Provider trả dữ liệu không hợp lệ')];$short=$json['shortenedUrl'];}
  return filter_var($short,FILTER_VALIDATE_URL)?[true,$short]:[false,'Link rút gọn không hợp lệ'];
 }
+
+function traffic_client_binding()
+{
+    $session = session_id();
+    $ua = (string) ($_SERVER['HTTP_USER_AGENT'] ?? '');
+    $language = (string) ($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? '');
+    $ip = (string) myip();
+    return [
+        'session_hash' => hash('sha256', $session),
+        'device_hash' => hash('sha256', $ua . '|' . $language),
+        'ip_hash' => hash('sha256', $ip),
+    ];
+}
+
+function traffic_auto_shorten($destination)
+{
+    global $db;
+    $providers = $db->get_list("SELECT `provider` FROM `traffic_providers` WHERE `active`=1 ORDER BY `id` ASC");
+    if (!$providers) return [false, 'Chưa có provider rút gọn nào được kích hoạt', ''];
+    $errors = [];
+    foreach ($providers as $row) {
+        $provider = (string) $row['provider'];
+        [$ok, $result] = traffic_shorten($provider, $destination, $destination);
+        if ($ok) return [true, $result, $provider];
+        $errors[] = $provider . ': ' . $result;
+    }
+    return [false, implode('; ', $errors), ''];
+}
